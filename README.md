@@ -1,4 +1,4 @@
-# ✈️ PS3 Fighter Stack
+# ✈️ Jet Fighter PS3 Demo
 
 Demo técnico de vuelo arcade en *pixel-art* pseudo-3D desarrollado de forma nativa para **PlayStation 3** mediante la técnica de **sprite stacking**, utilizando el SDK abierto **PSL1GHT** y aceleración por hardware con **Tiny3D**.
 

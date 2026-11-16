@@ -1,6 +1,12 @@
 build/
+out/
+pkg/
 *.elf
 *.self
 *.fake.self
 *.pkg
 *.map
+*.bat
+*.log
+ICON0.PNG
+PIC1.PNG

@@ -1,0 +1,135 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <io/pad.h>
+#include <tiny3d.h>
+
+#define PI 3.14159265f
+#define JET_SLICES 7
+#define ISL_SLICES 6
+#define MAX_TRAIL 48
+
+u32 jet_off[JET_SLICES], shad_off, isl_off[ISL_SLICES], cloud_off;
+float trail_lx[MAX_TRAIL], trail_ly[MAX_TRAIL], trail_rx[MAX_TRAIL], trail_ry[MAX_TRAIL];
+int trail_idx = 0;
+
+const char *jet_art[JET_SLICES] = {
+    {".......RR.......","......RRRR......","......RRRR......",".....RRRRRR.....",
+     ".....BBBBBB.....","....BBBBBBBB....","...BBBBBBBBBB...","..BBBBBBBBBBBB..",
+     ".RBBBBBBBBBBBBR.","RRBBBBBBBBBBBBRR","..BBBBBBBBBBBB..","....BBBBBBBB....",
+     ".....BBBBBB.....",".....OO..OO.....","................","................"},
+    {".......RR.......","......RRRR......","......RRRR......",".....DDDDDD.....",
+     ".....DDDDDD.....","....DDDDDDDD....","...DDDDDDDDDD...","..DDDDDDDDDDDD..",
+     ".RDDDDDDDDDDDDR.","RRDDDDDDDDDDDDRR","..DDDDDDDDDDDD..","....DDDDDDDD....",
+     ".....DDDDDD.....",".....YY..YY.....","................","................"},
+    {"................",".......RR.......","......RRRR......",".....DDDDDD.....",
+     ".....CCCCCC.....","....CCCCCCCC....","...DDDDDDDDDD...","..DDDDDDDDDDDD..",
+     ".WDDDDDDDDDDDDW.","WDDDDDDDDDDDDDDW","..DDDDDDDDDDDD..","....DDDDDDDD....",
+     ".....DDDDDD.....","................","................","................"},
+
+const char *jet_art[JET_SLICES] = {
+    {".......RR.......","......RRRR......","......RRRR......",".....RRRRRR.....",
+     ".....BBBBBB.....","....BBBBBBBB....","...BBBBBBBBBB...","..BBBBBBBBBBBB..",
+     ".RBBBBBBBBBBBBR.","RRBBBBBBBBBBBBRR","..BBBBBBBBBBBB..","....BBBBBBBB....",
+     ".....BBBBBB.....",".....OO..OO.....","................","................"},
+    {".......RR.......","......RRRR......","......RRRR......",".....DDDDDD.....",
+     ".....DDDDDD.....","....DDDDDDDD....","...DDDDDDDDDD...","..DDDDDDDDDDDD..",
+     ".RDDDDDDDDDDDDR.","RRDDDDDDDDDDDDRR","..DDDDDDDDDDDD..","....DDDDDDDD....",
+     ".....DDDDDD.....",".....YY..YY.....","................","................"},
+    {"................",".......RR.......","......RRRR......",".....DDDDDD.....",
+     ".....CCCCCC.....","....CCCCCCCC....","...DDDDDDDDDD...","..DDDDDDDDDDDD..",
+     ".WDDDDDDDDDDDDW.","WDDDDDDDDDDDDDDW","..DDDDDDDDDDDD..","....DDDDDDDD....",
+     ".....DDDDDD.....","................","................","................"},
+    {"................","................","................",".....CCCCCC.....",
+     "....CCCCCCCC....","....CCCCCCCC....",".....DDDDDD.....","....DDDDDDDD....",
+     "...DDDDDDDDDD...","....DDDDDDDD....",".....DDDDDD.....","....DDDDDDDD....",
+     "................","................","................","................"},
+    {"................","................","................","................",
+     ".....CCCCCC.....",".....CCCCCC.....","......DDDD......","......DDDD......",
+     "......DDDD......","......DDDD......",".....DDDDDD.....",".....DDDDDD.....",
+     "................","................","................","................"},
+    {"................","................","................","................",
+     "................","................","................",".......DD.......",
+     ".......DD.......",".......DD.......","......DDDD......","......DDDD......",
+     "................","................","................","................"},
+    {"................","................","................","................",
+     "................","................","................","................",
+     "................",".......RR.......",".......RR.......",".......RR.......",
+     "................","................","................","................"}
+};
+
+u32 get_col(char c) {
+    if (c == 'R') return 0xFFE63946;
+    if (c == 'B') return 0xFF3A404A;
+    if (c == 'D') return 0xFF23272E;
+    if (c == 'C') return 0xFF4CC9F0;
+    if (c == 'W') return 0xFFF1FAEE;
+    if (c == 'O') return 0xFFF77F00;
+    if (c == 'Y') return 0xFFFCBF49;
+    return 0x00000000;
+}
+
+void init_textures() {
+    u32 *ptr = tiny3d_AllocTexture(24 * 1024 * 1024);
+    for (int s = 0; s < JET_SLICES; s++) {
+        for (int y = 0; y < 16; y++)
+            for (int x = 0; x < 16; x++)
+                ptr[y * 16 + x] = get_col(jet_art[s][y][x]);
+        jet_off[s] = tiny3d_TextureOffset(ptr); ptr += 256;
+    }
+    for (int y = 0; y < 16; y++)
+        for (int x = 0; x < 16; x++)
+            ptr[y * 16 + x] = (jet_art[y][x] != '.') ? 0x66081426 : 0;
+    shad_off = tiny3d_TextureOffset(ptr); ptr += 256;
+
+    for (int s = 0; s < ISL_SLICES; s++) {
+        for (int y = 0; y < 128; y++) {
+            for (int x = 0; x < 128; x++) {
+                float dx = (x - 64.0f) / 64.0f, dy = (y - 64.0f) / 64.0f;
+                float n = sinf(x * 0.09f) * cosf(y * 0.09f) * 0.24f + sinf((x - y) * 0.06f) * 0.14f;
+                float d = sqrtf(dx * dx + dy * dy) + n;
+                u32 col = 0;
+                if (s == 0 && d < 0.78f) col = (d > 0.72f) ? 0xAAFFFFFF : 0xFF48CAE4;
+                else if (s == 1 && d < 0.71f) col = 0xFFE9C46A;
+                else if (s == 2 && d < 0.58f) col = (d > 0.54f) ? 0xFF52B788 : 0xFF74C69D;
+                else if (s == 3 && d < 0.44f) col = (d > 0.40f) ? 0xFF40916C : 0xFF52B788;
+                else if (s == 4 && d < 0.30f) col = ((x+y)%13==0) ? 0xFF8D99AE : 0xFF40916C;
+                else if (s == 5 && d < 0.36f && ((x * 7 + y * 13) % 9 == 0)) col = 0xFF1B4332;
+                ptr[y * 128 + x] = col;
+            }
+        }
+        isl_off[s] = tiny3d_TextureOffset(ptr); ptr += 16384;
+    }
+    for (int s = 0; s < 3; s++) {
+        float rad = 0.75f - s * 0.18f;
+        for (int y = 0; y < 32; y++) {
+            for (int x = 0; x < 32; x++) {
+                float dx = (x - 16.0f) / 16.0f, dy = (y - 16.0f) / 16.0f;
+                float d = sqrtf(dx * dx + dy * dy) + sinf(x * 0.4f) * cosf(y * 0.4f) * 0.15f;
+                ptr[y * 32 + x] = (d < rad) ? (s == 0 ? 0xFFD8E2DC : 0xFFFFFFFF) : 0;
+            }
+        }
+        cloud_off[s] = tiny3d_TextureOffset(ptr); ptr += 1024;
+    }
+}
+
+void draw_quad_rot(float x, float y, float z, float w, float h, float ang, float sx, float sy) {
+    MATRIX m = MatrixRotationZ(ang);
+    m = MatrixMultiply(m, MatrixTranslation(x, y, 0.0f));
+    tiny3d_SetMatrixModelView(&m);
+    float hw = w * 0.5f * sx, hh = h * 0.5f * sy;
+    tiny3d_SetPolygon(TINY3D_QUADS);
+    tiny3d_VertexPos(-hw, -hh, z); tiny3d_VertexColor(0xFFFFFFFF); tiny3d_VertexTexture(0.0f, 0.0f);
+    tiny3d_VertexPos( hw, -hh, z); tiny3d_VertexTexture(0.99f, 0.0f);
+    tiny3d_VertexPos( hw,  hh, z); tiny3d_VertexTexture(0.99f, 0.99f);
+    tiny3d_VertexPos(-hw,  hh, z); tiny3d_VertexTexture(0.0f, 0.99f);
+    tiny3d_End();
+    tiny3d_SetMatrixModelView(NULL);
+}
+
+void draw_line_2d(float x1, float y1, float x2, float y2, float z, u32 col) {
+    tiny3d_SetPolygon(TINY3D_LINES);
+    tiny3d_VertexPos(x1, y1, z); tiny3d_VertexColor(col);
+    tiny3d_VertexPos(x2, y2, z);
+    tiny3d_End();
+}

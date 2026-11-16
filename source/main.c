@@ -1,3 +1,4 @@
+#include <time.h>
 #include <stdarg.h>
 #include <sysutil/video.h>
 #include <sys/systime.h>
@@ -28,19 +29,19 @@ u32 col_of(char c){
  if(c=='C')return 0xFF4CC9F0;if(c=='W')return 0xFFF1FAEE;if(c=='O')return 0xFFF77F00;
  if(c=='Y')return 0xFFFCBF49;return 0;
 }
-FILE *flog=NULL;
-u64 t_start_sec=0, t_start_nsec=0;
+int log_init=0;
 void wlog(const char *fmt, ...){
- if(!flog){remove("/dev_hdd0/ps3_fighter.log");flog=fopen("/dev_hdd0/ps3_fighter.log","w");sysGetCurrentTime(&t_start_sec,&t_start_nsec);}
- if(flog){
+ if(!log_init){remove("/dev_hdd0/ps3_fighter.log");log_init=1;}
+ FILE *f=fopen("/dev_hdd0/ps3_fighter.log","a");
+ if(f){
+  time_t now=time(NULL);struct tm *tm_i=localtime(&now);
   u64 s,ns;sysGetCurrentTime(&s,&ns);
-  long ms=(long)((s-t_start_sec)*1000 + ((long)ns-(long)t_start_nsec)/1000000);
-  fprintf(flog,"[%06ld ms] ",ms);
-  va_list ap;va_start(ap,fmt);vfprintf(flog,fmt,ap);va_end(ap);
-  fprintf(flog,"\n");fflush(flog);
+  fprintf(f,"[%04d-%02d-%02d %02d:%02d:%02d.%03ld] ",tm_i->tm_year+1900,tm_i->tm_mon+1,tm_i->tm_mday,tm_i->tm_hour,tm_i->tm_min,tm_i->tm_sec,(long)(ns/1000000));
+  va_list ap;va_start(ap,fmt);vfprintf(f,fmt,ap);va_end(ap);
+  fprintf(f,"\n");fclose(f);
  }
 }
-void sys_cb(u64 st,u64 prm,void *usr){wlog("SYSUTIL_EVENT: 0x%llx",(unsigned long long)st);if(st==SYSUTIL_EXIT_GAME){if(flog)fclose(flog);exit(0);}}
+void sys_cb(u64 st,u64 prm,void *usr){wlog("SYSUTIL_EVENT: 0x%llx",(unsigned long long)st);if(st==SYSUTIL_EXIT_GAME){exit(0);}}
 void log_hw_info(){
  videoState vs;videoResolution vr;
  if(videoGetState(0,0,&vs)==0){
@@ -124,7 +125,7 @@ void draw_world_3d(float px,float py,float ang,float alt,float cp,float cs){
    }}}
 }
 int main(int argc, const char* argv[]){
- padInfo pi;padData pd;wlog("1. Inicio main");sysUtilRegisterCallback(0,sys_cb,NULL);tiny3d_Init(4*1024*1024);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_Flip();}wlog("3. HDMI Flip OK");ioPadInit(7);init_tex();wlog("4. Texturas OK");
+ padInfo pi;padData pd;wlog("1. Inicio main (TS:%llu)",(unsigned long long)time(NULL));sysUtilRegisterCallback(0,sys_cb,NULL);tiny3d_Init(4*1024*1024);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_Flip();}wlog("3. HDMI Flip OK");ioPadInit(7);init_tex();wlog("4. Texturas OK");
  float px=0,py=0,ang=-PI*.5f,alt=38,roll=0,cs=0,cp=0,ct=1;int demo=1,cam=0,bt=0,bs=0,bst=0,bsel=0,fc=0;
  wlog("5. Entrando a bucle principal");while(1){sysUtilCheckCallback();
   ioPadGetInfo(&pi);float ts=0,tp=0,tt=1;fc++;
@@ -144,22 +145,22 @@ int main(int argc, const char* argv[]){
   if(fc==1)wlog("6A. Clear inicio");tiny3d_Clear(0x2468B4FF,TINY3D_CLEAR_ALL);tiny3d_AlphaTest(1,0x10,TINY3D_ALPHA_FUNC_GEQUAL);
   tiny3d_BlendFunc(1,TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA|TINY3D_BLEND_FUNC_SRC_ALPHA_SRC_ALPHA,TINY3D_BLEND_FUNC_DST_RGB_ONE_MINUS_SRC_ALPHA|TINY3D_BLEND_FUNC_DST_ALPHA_ZERO,TINY3D_BLEND_RGB_FUNC_ADD|TINY3D_BLEND_ALPHA_FUNC_ADD);
   tiny3d_Project2D();
-  if(cam==0){if(fc==1)wlog("6A1. Dibujando islas");
+  if(cam==0){if(fc==1)wlog("6A1. Islas");if(fc==1)wlog("6A1. Dibujando islas");
    for(int ix=-1;ix<=1;ix++)for(int iy=-1;iy<=1;iy++){
     float wx=(floorf(px/520)+ix)*520-px,wy=(floorf(py/520)+iy)*520-py;
     for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx,256+wy-s*2.2f,100-s,340,340,0,1,1);}
     for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx+90,256+wy-55-c*2.2f,15-c,72,72,0,1,1);}}
-   float ja=-(ang+PI*.5f),bk=cosf(roll)*(1-fabsf(cs)*.25f);
+   if(fc==1)wlog("6A2. Sombra");float ja=-(ang+PI*.5f),bk=cosf(roll)*(1-fabsf(cs)*.25f);
    tiny3d_SetTexture(0,shad_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+alt*.35f,256+alt*.35f,30,44,44,ja,bk,1);
-   for(int k=1;k<48;k++){int i1=(tidx+k-1)%48,i2=(tidx+k)%48;
+   if(fc==1)wlog("6A3. Estelas");for(int k=1;k<48;k++){int i1=(tidx+k-1)%48,i2=(tidx+k)%48;
     float x1=tlx[i1]-px,y1=tly[i1]-py,x2=tlx[i2]-px,y2=tly[i2]-py;if(fabsf(x1-x2)<40&&fabsf(y1-y2)<40)line2d(424+x1,256+y1-alt*.4f,424+x2,256+y2-alt*.4f,22,0xAAFFFFFF);
     x1=trx[i1]-px;y1=try_arr[i1]-py;x2=trx[i2]-px;y2=try_arr[i2]-py;if(fabsf(x1-x2)<40&&fabsf(y1-y2)<40)line2d(424+x1,256+y1-alt*.4f,424+x2,256+y2-alt*.4f,22,0xAAFFFFFF);}
-   for(int s=0;s<7;s++){tiny3d_SetTexture(0,jet_off[s],16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424,256-alt*.4f-s*1.9f,20-s,48,48,ja,bk,1);}
+   if(fc==1)wlog("6A4. Avion");for(int s=0;s<7;s++){tiny3d_SetTexture(0,jet_off[s],16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424,256-alt*.4f-s*1.9f,20-s,48,48,ja,bk,1);}
   }else if(cam==1){
    draw_world_3d(px,py,ang,alt,cp,cs);
    float jy=365-cp*25,jr=roll+cs*.45f,sp=48*cosf(jr);
    line2d(424-sp,jy,330-sp*1.5f,512,18,0xDDFFFFFF);line2d(424+sp,jy,518+sp*1.5f,512,18,0xDDFFFFFF);
-   for(int s=0;s<7;s++){tiny3d_SetTexture(0,jet_off[s],16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424,jy-s*3.2f,15-s,96,34,jr,1,1);}
+   if(fc==1)wlog("6A4. Avion");for(int s=0;s<7;s++){tiny3d_SetTexture(0,jet_off[s],16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424,jy-s*3.2f,15-s,96,34,jr,1,1);}
    rect2d(412,jy+6,8,14+ct*6,12,0xFFAA00FF,0xFF4500FF);rect2d(428,jy+6,8,14+ct*6,12,0xFFAA00FF,0xFF4500FF);
   }else{
    draw_world_3d(px,py,ang,alt,cp,cs);
@@ -173,6 +174,6 @@ int main(int argc, const char* argv[]){
    rect2d(416,445,16,67,6,0x11161DFF,0x232B38FF);
      }
   if(fc==1)wlog("6B. Geometria dibujada, iniciando fuente");SetCurrentFont(0);
-  if(demo){SetFontSize(24,36);SetFontAutoCenter(1);SetFontColor(0xFFFFFFFF,0x00000080);DrawString(0,110,"PS3 FIGHTER STACK");if((fc/25)%2==0){SetFontSize(16,24);SetFontColor(0xFFFCBF49,0x00000080);DrawString(0,410,"PRESIONE START");}SetFontAutoCenter(0);}
+  if(demo){SetFontSize(24,36);SetFontAutoCenter(1);SetFontColor(0xFFFFFFFF,0x00000080);DrawString(0,110,"FIGHTER JET PS3 DEMO");if((fc/25)%2==0){SetFontSize(16,24);SetFontColor(0xFFFCBF49,0x00000080);DrawString(0,410,"PRESIONE START");}SetFontAutoCenter(0);}
   else{SetFontSize(10,16);SetFontColor(0xFFFFFFFF,0x00000060);DrawFormatString(16,14,"ALT:%02dM  CAM:%s  [TRI]VISTA [CUAD]TONEL [SEL]MENU",(int)alt,cam==0?"CENITAL":(cam==1?"3D PERSECUCION":"CABINA"));}
   if(fc==1)wlog("6C. Fuente dibujada, llamando Flip");tiny3d_Flip();if(fc==1)wlog("6D. Primer Flip RSX COMPLETADO!");}return 0;}

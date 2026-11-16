@@ -26,7 +26,11 @@ Al tratarse de una versión en desarrollo activo (`v0.3`), puedes reportar incid
 ---
 
 ## 📸 Capturas de Pantalla y Controles
-Consulta el repositorio para ver las capturas de las vistas cenital, 3D y cabina. Los controles en DualShock 3 incluyen el stick para girar, `X`/`R2` para postcombustión, `Cuadrado` para tonel volado, `Triángulo` para cambiar cámara, `Start` para iniciar y `Select` para volver al menú.
+Consulta el repositorio para ver las capturas de las vistas cenital, 3D y cabina. Los controles en DualShock 3 incluyen el stick para girar, `X`/`R2` para postcombustión, `Cuadrado` para tonel volado, `Triángulo` para cambiar cámara, `Start` para iniciar y `Select` para volver al menú.##
+
+| Vista Cenital (Top-Down) | Vista 3D Persecución | Vista de Cabina (HUD) |
+| :---: | :---: | :---: |
+| <img src="docs/zenital.png" width="260"/> | <img src="docs/persecucion3d.png" width="260"/> | <img src="docs/cabina.png" width="260"/> |
 
 ## 🙏 Créditos e Inspiración
 * **Concepto original:** Inspirado en [*fighter · Forge*](https://ui8.ai) (UI8 Forge).

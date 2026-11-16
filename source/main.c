@@ -12,7 +12,7 @@
 
 extern unsigned char msx[];
 #define PI 3.14159265f
-u32 jet_off[7], shad_off, white_off, font_off, ui_bg_off, isl_off[6], cloud_off[3];
+u32 jet_off[7], shad_off, white_off, font_off, ui_bg_off, sky_off, sea_off, cab_dark_off, cab_org_off, scr_off, hud_grn_off, isl_off[6], cloud_off[3];
 float tlx[48], tly[48], trx[48], try_arr[48];
 int tidx = 0;
 const char *jet[7][16] = {
@@ -79,6 +79,18 @@ void init_tex() {
  }
   for(int k=0;k<256;k++)tmp[k]=0xAA0A101A;
  RSX_MEMCPY(p, tmp, 16*16*4); ui_bg_off=tiny3d_TextureOffset(p); p=al128(p+256);
+  for(int y=0;y<16;y++){u32 c=(y<8)?0xFF2B6CB0:0xFF7CC4FA;for(int x=0;x<16;x++)tmp[y*16+x]=c;}
+ RSX_MEMCPY(p, tmp, 16*16*4); sky_off=tiny3d_TextureOffset(p); p=al128(p+256);
+ for(int y=0;y<16;y++){u32 c=(y<8)?0xFF1A5699:0xFF0E3463;for(int x=0;x<16;x++)tmp[y*16+x]=c;}
+ RSX_MEMCPY(p, tmp, 16*16*4); sea_off=tiny3d_TextureOffset(p); p=al128(p+256);
+ for(int k=0;k<256;k++)tmp[k]=0xFF1B222C;
+ RSX_MEMCPY(p, tmp, 16*16*4); cab_dark_off=tiny3d_TextureOffset(p); p=al128(p+256);
+ for(int k=0;k<256;k++)tmp[k]=0xFFD96B27;
+ RSX_MEMCPY(p, tmp, 16*16*4); cab_org_off=tiny3d_TextureOffset(p); p=al128(p+256);
+ for(int k=0;k<256;k++)tmp[k]=0xFF0A2618;
+ RSX_MEMCPY(p, tmp, 16*16*4); scr_off=tiny3d_TextureOffset(p); p=al128(p+256);
+ for(int k=0;k<256;k++)tmp[k]=0xFF38D975;
+ RSX_MEMCPY(p, tmp, 16*16*4); hud_grn_off=tiny3d_TextureOffset(p); p=al128(p+256);
  memset(tmp, 0, 128*128*4);
  for(int ch=32;ch<128;ch++){
   int gx=(ch%16)*8, gy=((ch-32)/16)*8;
@@ -127,18 +139,26 @@ void quad_persp(float x0,float z0,float x1,float z1,float x2,float z2,float x3,f
  tiny3d_VertexPos(424+x3*s3,hor+yw*s3,zbuf);tiny3d_VertexTexture(0,.99f);
  tiny3d_End();
 }
+void tex_box(u32 tex,float x,float y,float w,float h,float z){
+ tiny3d_SetTexture(0,tex,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
+ tiny3d_SetPolygon(TINY3D_QUADS);
+ tiny3d_VertexPos(x,y,z);tiny3d_VertexTexture(0,0);tiny3d_VertexPos(x+w,y,z);tiny3d_VertexTexture(1,0);
+ tiny3d_VertexPos(x+w,y+h,z);tiny3d_VertexTexture(1,1);tiny3d_VertexPos(x,y+h,z);tiny3d_VertexTexture(0,1);
+ tiny3d_End();
+}
 void draw_world_3d(float px,float py,float ang,float alt,float cp,float cs){
- float ca=-ang-PI*.5f,hor=230+cp*45,co=cosf(ca),si=sinf(ca);
- rect2d(0,0,848,hor,65535,0x4A8FE7FF,0xB8E0FFFF);rect2d(0,hor,848,512-hor,65535,0x1E6BB8FF,0x103B6EFF);
+ float ca=-ang-PI*.5f,hor=230+cp*40,co=cosf(ca),si=sinf(ca);
+ tex_box(sky_off,0,0,848,hor,65535);
+ tex_box(sea_off,0,hor,848,512-hor,65535);
  for(int ix=-2;ix<=2;ix++)for(int iy=-2;iy<=2;iy++){
   float wx=(floorf(px/520)+ix)*520-px,wy=(floorf(py/520)+iy)*520-py;
   float cx=wx*co-wy*si,cz=-(wx*si+wy*co);
-  if(cz>160&&cz<950){float h=170.f;
+  if(cz>140&&cz<950){float h=170.f;
    float x0=cx-h*co+h*si,z0=cz-h*si-h*co,x1=cx+h*co+h*si,z1=cz+h*si-h*co;
    float x2=cx+h*co-h*si,z2=cz+h*si+h*co,x3=cx-h*co-h*si,z3=cz-h*si+h*co;
    if(z0>45&&z1>45&&z2>45&&z3>45){
-    for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0,z0,x1,z1,x2,z2,x3,z3,alt*1.4f-s*3.2f,hor,500-cz-s);}
-    for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0+70,z0,x1+70,z1,x2+70,z2,x3+70,z3,alt*1.4f-42-c*2.8f,hor,480-cz-c);}
+    for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0,z0,x1,z1,x2,z2,x3,z3,alt*1.5f-s*3.5f,hor,500-cz-s);}
+    for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0+70,z0,x1+70,z1,x2+70,z2,x3+70,z3,alt*1.5f-45-c*3.0f,hor,480-cz-c);}
    }}}
 }
 void draw_text(float x, float y, float z, float sc, const char *s){
@@ -169,6 +189,64 @@ int main(int argc, const char* argv[]){
  wlog("5. Entrando a bucle principal");while(1){sysUtilCheckCallback();
   ioPadGetInfo(&pi);float ts=0,tp=0,tt=1;fc++;
   if(demo){ts=sinf(fc*.015f)*.65f;tp=cosf(fc*.02f)*.35f;if(fc%240==0&&roll<=.01f)roll=2*PI;}
+  for(int i=0;i<MAX_PADS;i++)if(pi.status[i]){ioPadGetData(i,&pd);
+   if(pd.BTN_START&&!bst){if(demo){demo=0;cam=0;}else return 0;}
+   if(pd.BTN_SELECT&&!bsel&&!demo){demo=1;cam=0;}
+   if(!demo){
+    if(pd.ANA_L_H>0||pd.ANA_L_V>0){float lx=(pd.ANA_L_H-128)/128.f,ly=(pd.ANA_L_V-128)/128.f;if(fabsf(lx)>.22f)ts=lx;if(fabsf(ly)>.22f)tp=-ly;}
+    if(pd.BTN_LEFT)ts=-1;if(pd.BTN_RIGHT)ts=1;if(pd.BTN_UP)tp=1;if(pd.BTN_DOWN)tp=-1;
+    if(pd.BTN_CROSS||pd.BTN_R2)tt=2.3f;if(pd.BTN_SQUARE&&!bs&&roll<=.01f)roll=2*PI;if(pd.BTN_TRIANGLE&&!bt){cam=(cam+1)%3;wlog("CAMBIO DE VISTA A: %d", cam);}
+   }bst=pd.BTN_START;bsel=pd.BTN_SELECT;bs=pd.BTN_SQUARE;bt=pd.BTN_TRIANGLE;}
+  cs+=(ts-cs)*.14f;cp+=(tp-cp)*.14f;ct+=(tt-ct)*.1f;ang+=cs*.042f;alt+=cp*1.1f;
+  if(alt<12)alt=12;if(alt>95)alt=95;if(roll>0){roll-=.18f;if(roll<0)roll=0;}
+  px+=cosf(ang)*2.6f*ct;py+=sinf(ang)*2.6f*ct;
+  if(fc%2==0){float wa=ang+PI*.5f,sp=18*cosf(roll)*(1-fabsf(cs)*.2f);tlx[tidx]=px+cosf(wa)*sp-cosf(ang)*10;tly[tidx]=py+sinf(wa)*sp-sinf(ang)*10;trx[tidx]=px-cosf(wa)*sp-cosf(ang)*10;try_arr[tidx]=py-sinf(wa)*sp-sinf(ang)*10;tidx=(tidx+1)%48;}
+  if(fc==1)wlog("6A. Clear inicio");tiny3d_Clear(0x2468B4FF,TINY3D_CLEAR_ALL);tiny3d_AlphaTest(1,0x10,TINY3D_ALPHA_FUNC_GEQUAL);
+  tiny3d_BlendFunc(1,TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA|TINY3D_BLEND_FUNC_SRC_ALPHA_SRC_ALPHA,TINY3D_BLEND_FUNC_DST_RGB_ONE_MINUS_SRC_ALPHA|TINY3D_BLEND_FUNC_DST_ALPHA_ZERO,TINY3D_BLEND_RGB_FUNC_ADD|TINY3D_BLEND_ALPHA_FUNC_ADD);
+  tiny3d_Project2D();
+  if(cam==0){if(fc==1)wlog("6A1. Islas");if(fc==1)wlog("6A1. Dibujando islas");
+   for(int ix=-1;ix<=1;ix++)for(int iy=-1;iy<=1;iy++){
+    float wx=(floorf(px/520)+ix)*520-px,wy=(floorf(py/520)+iy)*520-py;
+    for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx,256+wy-s*2.2f,100-s,340,340,0,1,1);if(fc==1&&ix==-1&&iy==-1)wlog("6A1b. Capa isla %d OK", s);}
+    for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx+90,256+wy-55-c*2.2f,15-c,72,72,0,1,1);}}
+   if(fc==1)wlog("6A2. Sombra");float ja=ang+PI*.5f,bk=cosf(roll)*(1-fabsf(cs)*.25f);
+   tiny3d_SetTexture(0,shad_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+alt*.35f,256+alt*.35f,30,44,44,ja,bk,1);
+   if(fc==1)wlog("6A3. Estelas");for(int k=1;k<48;k++){int i1=(tidx+k-1)%48,i2=(tidx+k)%48;
+    float x1=tlx[i1]-px,y1=tly[i1]-py,x2=tlx[i2]-px,y2=tly[i2]-py;if(fabsf(x1-x2)<40&&fabsf(y1-y2)<40)line2d(424+x1,256+y1-alt*.4f,424+x2,256+y2-alt*.4f,22,0xAAFFFFFF);
+    x1=trx[i1]-px;y1=try_arr[i1]-py;x2=trx[i2]-px;y2=try_arr[i2]-py;if(fabsf(x1-x2)<40&&fabsf(y1-y2)<40)line2d(424+x1,256+y1-alt*.4f,424+x2,256+y2-alt*.4f,22,0xAAFFFFFF);}
+   if(fc==1)wlog("6A4. Avion");for(int s=0;s<7;s++){tiny3d_SetTexture(0,jet_off[s],16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424,256-alt*.4f-s*1.9f,20-s,48,48,ja,bk,1);}
+  }else if(cam==1){
+   draw_world_3d(px,py,ang,alt,cp,cs);
+   float jy=365-cp*25,jr=roll+cs*.45f,sp=48*cosf(jr);
+   line2d(424-sp,jy,330-sp*1.5f,512,18,0xDDFFFFFF);line2d(424+sp,jy,518+sp*1.5f,512,18,0xDDFFFFFF);
+   if(fc==1)wlog("6A4. Avion");for(int s=0;s<7;s++){tiny3d_SetTexture(0,jet_off[s],16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424,jy-s*3.2f,15-s,96,34,jr,1,1);}
+   rect2d(412,jy+6,8,14+ct*6,12,0xFFAA00FF,0xFF4500FF);rect2d(428,jy+6,8,14+ct*6,12,0xFFAA00FF,0xFF4500FF);
+  }else{
+   draw_world_3d(px,py,ang,alt,cp,cs);
+   /* Mira HUD central y lineas de horizonte artificial */
+   tex_box(hud_grn_off,335,230+cs*30,178,3,13);tex_box(hud_grn_off,423,205,3,52,13);
+   tex_box(hud_grn_off,355,190,14,3,13);tex_box(hud_grn_off,479,190,14,3,13);
+   /* Pilares laterales del parabrisas */
+   tex_box(cab_dark_off,0,0,54,512,12);tex_box(cab_dark_off,794,0,54,512,12);
+   tex_box(cab_org_off,50,0,12,512,11);tex_box(cab_org_off,786,0,12,512,11);
+   /* Tablero principal y visera naranja */
+   tex_box(cab_dark_off,0,356,848,156,10);tex_box(cab_org_off,0,350,848,8,9);
+   /* Pantalla izquierda (Radar) y derecha (Sensores motor/combustible) */
+   tex_box(scr_off,74,376,195,112,8);tex_box(scr_off,579,376,195,112,8);
+   tex_box(hud_grn_off,168,386,3,92,7);tex_box(hud_grn_off,88,431,168,3,7);
+   tex_box(hud_grn_off,145+sinf(fc*.05f)*35,412+cosf(fc*.05f)*20,8,8,6);
+   /* Barras de medidores en pantalla derecha (Altitud, Velocidad, Combustible) */
+   tex_box(hud_grn_off,600,475-alt*.8f,24,alt*.8f,7);
+   tex_box(hud_grn_off,645,475-ct*32.f,24,ct*32.f,7);
+   tex_box(hud_grn_off,690,405,24,70,7);
+   /* Horizonte artificial central */
+   tex_box(sky_off,370,374,108,52,8);tex_box(cab_org_off,370,426+cp*18,108,52-cp*18,8);
+   tex_box(white_off,370,425+cp*18,108,3,7);
+   /* Palanca de mando (Joystick) central dinamica */
+   float jx=414+cs*26, jy=446-cp*14;
+   tex_box(cab_dark_off,jx,jy,20,66,6);tex_box(cab_org_off,jx-3,jy-8,26,18,5);
+  }
+    if(demo){ts=sinf(fc*.015f)*.65f;tp=cosf(fc*.02f)*.35f;if(fc%240==0&&roll<=.01f)roll=2*PI;}
   for(int i=0;i<MAX_PADS;i++)if(pi.status[i]){ioPadGetData(i,&pd);
    if(pd.BTN_START&&!bst){if(demo){demo=0;cam=0;}else return 0;}
    if(pd.BTN_SELECT&&!bsel&&!demo){demo=1;cam=0;}

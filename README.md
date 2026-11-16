@@ -26,15 +26,15 @@ Demo técnico de vuelo arcade en *pixel-art* pseudo-3D desarrollado de forma nat
 ### Pasos de compilación
 1. Clona este repositorio y entra en la carpeta del proyecto:
    ```bash
-   git clone https://github.com/animekai/ps3-fighter.git
-   cd ps3-fighter
+   git clone https://github.com/animekai/Jet-Fighter-PS3-Demo.git
+   cd Jet-Fighter-PS3-Demo
    ```
 2. Compila el binario ejecutando `make` (o genera directamente el instalador `.pkg`):
    ```bash
    make clean && make pkg
    ```
-3. Se generarán los archivos `ps3-fighter.self` y `ps3-fighter.pkg` en la raíz del proyecto.
+3. Se generarán los archivos `Jet-Fighter-PS3-Demo.self` y `Jet-Fighter-PS3-Demo.pkg` en la raíz del proyecto.
 
 ## 📦 Instalación y Ejecución
-* **En PS3 (CFW / HEN):** Copia `ps3-fighter.pkg` a una memoria USB en formato FAT32 e instálalo desde *Administrar archivos PKG*.
-* **En PC (Emulador RPCS3):** Arrastra `ps3-fighter.self` o `ps3-fighter.pkg` directamente a la ventana del emulador.
+* **En PS3 (CFW / HEN):** Copia `Jet-Fighter-PS3-Demo.pkg` a una memoria USB en formato FAT32 e instálalo desde *Administrar archivos PKG*.
+* **En PC (Emulador RPCS3):** Arrastra `Jet-Fighter-PS3-Demo.self` o `Jet-Fighter-PS3-Demo.pkg` directamente a la ventana del emulador.

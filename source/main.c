@@ -214,9 +214,9 @@ u32 n_seed=987654321,m_seed=135792468;int last_step=-1,snd_fc=0,prog_idx=0;
 float cur_fl=0,tgt_fl=0,cur_fb=55.f,cur_fa=0,cur_fp1=220.f,cur_fp2=261.63f,cur_fp3=329.63f;
 volatile float v_ct=1.f,v_cs=0.f,v_roll=0.f;volatile int v_demo=1;
 const float sw_scale[10]={220.00f,246.94f,261.63f,293.66f,329.63f,349.23f,392.00f,440.00f,493.88f,523.25f};
-const float sw_roots[8]={110.00f,87.31f,130.81f,98.00f,146.83f,110.00f,87.31f,82.41f};
-const float sw_thirds[8]={130.81f,110.00f,164.81f,123.47f,174.61f,130.81f,110.00f,103.83f};
-const float sw_fifths[8]={164.81f,130.81f,196.00f,146.83f,220.00f,164.81f,130.81f,123.47f};
+const float sw_roots[16]={110.00f,87.31f,130.81f,98.00f, 146.83f,110.00f,87.31f,82.41f, 98.00f,110.00f,87.31f,130.81f, 130.81f,98.00f,110.00f,87.31f};
+const float sw_thirds[16]={130.81f,110.00f,164.81f,123.47f, 174.61f,130.81f,110.00f,103.83f, 123.47f,130.81f,110.00f,164.81f, 164.81f,123.47f,130.81f,110.00f};
+const float sw_fifths[16]={164.81f,130.81f,196.00f,146.83f, 220.00f,164.81f,130.81f,123.47f, 146.83f,164.81f,130.81f,196.00f, 196.00f,146.83f,164.81f,130.81f};
 u32 next_rng(){m_seed=m_seed*1664525u+1013904223u;return m_seed;}
 float saw(float p){return 2.f*p-1.f;}
 void audio_thread(void *arg){
@@ -227,12 +227,12 @@ void audio_thread(void *arg){
   f32 *buf=(f32*)((u64)snd_cfg.audioDataStart)+snd_cfg.channelCount*AUDIO_BLOCK_SAMPLES*nxt;
   snd_fc++;int step=snd_fc/32;
   if(step!=last_step){
-   last_step=step;u32 r=next_rng();int bar=(step/16)%8;if((step%16)==0&&bar==0)prog_idx=(r>>16)&1;
+   last_step=step;u32 r=next_rng();int bar=(step/16)%8;if((step%16)==0)prog_idx=(r>>14)&3;
    int ci=(prog_idx*4)+(bar%4);cur_fb=sw_roots[ci]*((step&1)?1.f:.5f);env_b=1.f;
    cur_fp1=sw_roots[ci]*2.f;cur_fp2=sw_thirds[ci]*2.f;cur_fp3=sw_fifths[ci]*2.f;
    cur_fa=(step%4==0)?cur_fp1:((step%4==2)?cur_fp3:cur_fp2);
-   if((step%2)==0){if(((r>>4)&7)<5){tgt_fl=sw_scale[(r&7)+((r>>10)&1)*2];if(cur_fl<1.f)cur_fl=tgt_fl;env_l=1.f;}else if(((r>>8)&3)==0)tgt_fl=0.f;}
-   if((step%4)==0)ph_kick=1.f;if((step%8)==4)ph_snare=1.f;if((step%2)==1)ph_hat=1.f;
+   if((step%2)==0){if(((r>>4)&7)<5){tgt_fl=sw_scale[(r&7)+((r>>10)&1)*2]*(((r>>18)&3)==0?2.f:(((r>>18)&3)==1?0.5f:1.f));if(cur_fl<1.f)cur_fl=tgt_fl;env_l=1.f;}else if(((r>>8)&3)==0)tgt_fl=0.f;}
+   if((step%4)==0)ph_kick=1.f;if((step%8)==4||((step%32)>=28&&(r&1)))ph_snare=1.f;if((step%2)==1)ph_hat=1.f;
   }
   float ct=v_ct,cs=v_cs,roll=v_roll;int demo=v_demo;
   for(int i=0;i<AUDIO_BLOCK_SAMPLES;i++){
@@ -253,7 +253,7 @@ void audio_thread(void *arg){
   }
  }
 }
-void init_snd(){for(int k=0;k<256;k++)sin_tab[k]=sinf((k/256.f)*6.2831853f);audioPortParam pr={AUDIO_PORT_2CH,AUDIO_BLOCK_8,AUDIO_PORT_INITLEVEL,0.95f};if(audioInit()==0&&audioPortOpen(&pr,&snd_port)==0&&audioGetPortConfig(snd_port,&snd_cfg)==0&&audioCreateNotifyEventQueue(&snd_q,&snd_key)==0&&audioSetNotifyEventQueue(snd_key)==0){sysEventQueueDrain(snd_q);audioPortStart(snd_port);snd_ok=1;sys_ppu_thread_t tid;sysThreadCreate(&tid,audio_thread,NULL,1000,0x4000,THREAD_JOINABLE,"snd_sw");wlog("AUDIO: Synthwave OK");}}
+void init_snd(){for(int k=0;k<256;k++)sin_tab[k]=sinf((k/256.f)*6.2831853f);audioPortParam pr={AUDIO_PORT_2CH,AUDIO_BLOCK_8,AUDIO_PORT_INITLEVEL,0.95f};if(audioInit()==0&&audioPortOpen(&pr,&snd_port)==0&&audioGetPortConfig(snd_port,&snd_cfg)==0&&audioCreateNotifyEventQueue(&snd_q,&snd_key)==0&&audioSetNotifyEventQueue(snd_key)==0){u64 ts,tns;sysGetCurrentTime(&ts,&tns);m_seed^=(u32)(ts^tns);sysEventQueueDrain(snd_q);audioPortStart(snd_port);snd_ok=1;sys_ppu_thread_t tid;sysThreadCreate(&tid,audio_thread,NULL,1000,0x4000,THREAD_JOINABLE,"snd_sw");wlog("AUDIO: Synthwave OK");}}
 void update_snd(int fc,float ct,float cs,float roll,int demo){v_ct=ct;v_cs=cs;v_roll=roll;v_demo=demo;}
 int main(int argc, const char* argv[]){
  padInfo pi;padData pd;wlog("1. Inicio main (TS:%llu)",(unsigned long long)time(NULL));sysUtilRegisterCallback(0,sys_cb,NULL);int r_t3d=tiny3d_Init(4*1024*1024);wlog("tiny3d_Init ret: 0x%x", r_t3d);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_Flip();}wlog("3. HDMI Flip OK");int r_pad=ioPadInit(7);init_snd();wlog("ioPadInit ret: 0x%x", r_pad);init_tex();wlog("4. Texturas OK");

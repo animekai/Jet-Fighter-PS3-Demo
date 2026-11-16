@@ -1,40 +1,20 @@
-# ✈️ Fighter Jet PS3 Demo
+<div align="center">
+  <img src="docs/logo.png" alt="Fighter Jet PS3 Demo Logo" width="320"/>
+  <h1>✈️ Fighter Jet PS3 Demo</h1>
+  <p><strong>Demo técnico de vuelo arcade en pixel-art 3D nativo para PlayStation 3</strong></p>
+  <p>Desarrollado en C con <strong>PSL1GHT</strong> y aceleración por hardware RSX mediante <strong>Tiny3D</strong>.</p>
+  <img src="docs/banner.png" alt="Fighter Jet PS3 Demo Banner" width="100%"/>
+</div>
 
-Demo técnico de vuelo arcade en *pixel-art* pseudo-3D desarrollado de forma nativa para **PlayStation 3** mediante la técnica de **sprite stacking**, utilizando el SDK abierto **PSL1GHT** y aceleración por hardware con **Tiny3D**.
+---
 
-## 🎮 Características
-* **Renderizado por capas (Sprite Stacking):** Caza de combate de 7 capas, islas procedurales con 6 niveles de relieve y nubes flotantes.
-* **Efectos visuales en tiempo real:** Sombra dinámica proyectada según la altitud y estelas aerodinámicas en ambas alas.
-* **Controles suaves:** Inercia de giro, alabeo (*barrel roll*) y aceleración con propulsores.
+## 🚀 Estado Actual y Logros (v0.2)
+El proyecto se encuentra en su **versión 0.2**, funcionando de manera fluida en el emulador **RPCS3** e incorporando los siguientes avances técnicos:
 
-## 🕹️ Controles (DualShock 3)
-* **Stick Izquierdo / Cruceta:** Girar y controlar la altitud de vuelo.
-* **`X` o `R2`:** Activar propulsores (aumentar velocidad).
-* **`Cuadrado`:** Realizar tonel volado (*barrel roll*).
-* **`Start`:** Salir al menú principal de la consola (XMB).
-
-## 🙏 Créditos e Inspiración
-* **Concepto original:** Inspirado en el fragmento interactivo [*fighter · Forge*](https://ui8.ai) creado en la plataforma **Forge (UI8)**.
-* **Librerías Homebrew:** Desarrollado sobre [PSL1GHT](https://github.com/ps3dev/PSL1GHT) y [Tiny3D](https://github.com) de Hermes.
-
-## 🛠️ Cómo compilar desde el código fuente
-
-### Requisitos previos
-* Entorno Linux o **WSL (Ubuntu)** con **ps3toolchain** y **PSL1GHT** configurados.
-* Librerías de `portlibs` instaladas (específicamente `tiny3d`).
-
-### Pasos de compilación
-1. Clona este repositorio y entra en la carpeta del proyecto:
-   ```bash
-   git clone https://github.com/animekai/Jet-Fighter-PS3-Demo.git
-   cd Jet-Fighter-PS3-Demo
-   ```
-2. Compila el binario ejecutando `make` (o genera directamente el instalador `.pkg`):
-   ```bash
-   make clean && make pkg
-   ```
-3. Se generarán los archivos `Jet-Fighter-PS3-Demo.self` y `Jet-Fighter-PS3-Demo.pkg` en la raíz del proyecto.
-
-## 📦 Instalación y Ejecución
-* **En PS3 (CFW / HEN):** Copia `Jet-Fighter-PS3-Demo.pkg` a una memoria USB en formato FAT32 e instálalo desde *Administrar archivos PKG*.
-* **En PC (Emulador RPCS3):** Arrastra `Jet-Fighter-PS3-Demo.self` o `Jet-Fighter-PS3-Demo.pkg` directamente a la ventana del emulador.
+* **Menú Principal con Piloto Automático:** Pantalla de título interactiva (*PRESIONE START*) donde el caza sobrevuela el archipiélago ejecutando giros y maniobras de forma autónoma hasta que el jugador toma el control.
+* **Sistema de 3 Cámaras / Vistas en Tiempo Real (`Triángulo`):**
+  1. **Vista Cenital (Top-Down):** Renderizado por capas (*sprite stacking*) de 7 niveles para el caza, 6 niveles de relieve para islas procedurales, nubes flotantes, sombra dinámica proyectada según la altitud y doble estela aerodinámica en las puntas de las alas.
+  2. **Vista 3D de Persecución:** Proyección en perspectiva con cielo degradado, horizonte marítimo, islas y nubes en el plano 3D y propulsores traseros animados.
+  3. **Vista de Cabina (Primera Persona):** Tablero de instrumentos con radar, horizonte artificial dinámico, marco estructural y mira HUD central sensible al alabeo.
+* **Física de Vuelo Arcade:** Controles suavizados con inercia de giro, control de altitud, aceleración con postcombustión (`X` / `R2`) y tonel volado de 360° (*barrel roll* con `Cuadrado`).
+* **Personalización XMB y Diagnóstico:** Paquete `.pkg` personalizado con icono `ICON0.PNG`, fondo `PIC1.PNG` a 1080p y sistema de registro (`/dev_hdd0/ps3_fighter.log`) con marcas de tiempo para depuración en hardware real.

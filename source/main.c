@@ -1,3 +1,4 @@
+#include <audio/audio.h>
 #include <time.h>
 #include <stdarg.h>
 #include <sysutil/video.h>
@@ -183,8 +184,41 @@ void ui_box(float x,float y,float w,float h,float z){
  tiny3d_VertexPos(x+w,y+h,z);tiny3d_VertexTexture(1,1);tiny3d_VertexPos(x,y+h,z);tiny3d_VertexTexture(0,1);
  tiny3d_End();
 }
+u32 snd_port=0, last_blk=999; audioPortConfig snd_cfg; int snd_ok=0;
+float ph_mel=0, ph_bass=0, ph_roll=0; u32 n_seed=1234567;
+const float notes[]={329.63f,329.63f,392.00f,440.00f,493.88f,440.00f,392.00f,329.63f,293.66f,293.66f,329.63f,392.00f,440.00f,392.00f,329.63f,246.94f};
+const float bass[]={110.00f,110.00f,110.00f,110.00f,130.81f,130.81f,146.83f,146.83f,98.00f,98.00f,98.00f,98.00f,110.00f,110.00f,123.47f,123.47f};
+void init_snd(){
+ audioPortParam pr; pr.numChannels=AUDIO_PORT_2CH; pr.numBlocks=AUDIO_BLOCK_8; pr.attrib=AUDIO_PORT_INITLEVEL; pr.level=0.85f;
+ if(audioInit()==0 && audioPortOpen(&pr,&snd_port)==0 && audioGetPortConfig(snd_port,&snd_cfg)==0 && audioPortStart(snd_port)==0){
+  snd_ok=1; wlog("AUDIO: Iniciado OK (48kHz estero)");
+ }else wlog("AUDIO: No disponible");
+}
+void update_snd(int fc, float ct, float cs, float roll, int demo){
+ if(!snd_ok)return;
+ u64 cur=*(u64*)((u64)snd_cfg.readIndex);
+ u32 nxt=(cur+1)%snd_cfg.numBlocks;
+ if(nxt==last_blk)return;
+ last_blk=nxt;
+ f32 *buf=(f32*)((u64)snd_cfg.audioDataStart)+snd_cfg.channelCount*AUDIO_BLOCK_SAMPLES*nxt;
+ int step=(fc/9)%16;
+ float fm=notes[step], fb=bass[step];
+ for(int i=0;i<AUDIO_BLOCK_SAMPLES;i++){
+  ph_mel+=fm/48000.0f; if(ph_mel>=1.0f)ph_mel-=1.0f;
+  ph_bass+=fb/48000.0f; if(ph_bass>=1.0f)ph_bass-=1.0f;
+  float m=(ph_mel<0.5f?1.0f:-1.0f)*0.07f + (ph_bass<0.5f?1.0f:-1.0f)*0.09f;
+  n_seed=n_seed*1664525u+1013904223u;
+  float nz=((float)(n_seed>>16)/32768.0f)-1.0f;
+  float eng=nz*(0.04f + (ct-1.0f)*0.09f + fabsf(cs)*0.04f);
+  float wh=0;
+  if(roll>0.05f){ph_roll+=(380.0f+sinf(roll)*220.0f)/48000.0f; if(ph_roll>=1.0f)ph_roll-=1.0f; wh=sinf(ph_roll*6.28318f)*0.12f;}
+  float out=m + (demo?0.0f:(eng+wh));
+  if(out>0.9f)out=0.9f; if(out<-0.9f)out=-0.9f;
+  buf[i*2+0]=out; buf[i*2+1]=out;
+ }
+}
 int main(int argc, const char* argv[]){
- padInfo pi;padData pd;wlog("1. Inicio main (TS:%llu)",(unsigned long long)time(NULL));sysUtilRegisterCallback(0,sys_cb,NULL);int r_t3d=tiny3d_Init(4*1024*1024);wlog("tiny3d_Init ret: 0x%x", r_t3d);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_Flip();}wlog("3. HDMI Flip OK");int r_pad=ioPadInit(7);wlog("ioPadInit ret: 0x%x", r_pad);init_tex();wlog("4. Texturas OK");
+ padInfo pi;padData pd;wlog("1. Inicio main (TS:%llu)",(unsigned long long)time(NULL));sysUtilRegisterCallback(0,sys_cb,NULL);int r_t3d=tiny3d_Init(4*1024*1024);wlog("tiny3d_Init ret: 0x%x", r_t3d);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);update_snd(fc,ct,cs,roll,demo);tiny3d_Flip();}wlog("3. HDMI Flip OK");int r_pad=ioPadInit(7);init_snd();wlog("ioPadInit ret: 0x%x", r_pad);init_tex();wlog("4. Texturas OK");
  float px=0,py=0,ang=-PI*.5f,alt=38,roll=0,cs=0,cp=0,ct=1;int demo=1,cam=0,bt=0,bs=0,bst=0,bsel=0,fc=0;
  wlog("5. Entrando a bucle principal");while(1){sysUtilCheckCallback();
   ioPadGetInfo(&pi);float ts=0,tp=0,tt=1;fc++;
@@ -303,4 +337,4 @@ int main(int argc, const char* argv[]){
    sprintf(buf,"ALT:%02dM  CAM:%s  [TRI]VISTA [CUAD]TONEL [SEL]MENU",(int)alt,cam==0?"CENITAL":(cam==1?"3D":"CABINA"));
    draw_text(20,17,3,1.5f,buf);
   }
-  tiny3d_Flip();if(fc==1)wlog("6D. Primer Flip RSX COMPLETADO!");if(fc==10)wlog("7. 10 FRAMES FLUIDOS EN PS3 REAL!");}return 0;}
+  update_snd(fc,ct,cs,roll,demo);tiny3d_Flip();if(fc==1)wlog("6D. Primer Flip RSX COMPLETADO!");if(fc==10)wlog("7. 10 FRAMES FLUIDOS EN PS3 REAL!");}return 0;}

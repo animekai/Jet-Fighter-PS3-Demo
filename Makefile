@@ -3,16 +3,18 @@ ifeq ($(strip $(PSL1GHT)),)
 $(error "Please set PSL1GHT in your environment.")
 endif
 
-TITLE    := PS3 Fighter Stack
+TITLE    := Jet Fighter Demo PS3
+ICON0    := $(CURDIR)/ICON0.PNG
 APPID    := FIGHTER3D
 CONTENTID:= UP0001-$(APPID)_00-0000000000000000
+APPVER   := 01.02
 
 include $(PSL1GHT)/ppu_rules
 
-TARGET   := $(notdir $(CURDIR))
+TARGET   := ps3-fighter_0.2
 BUILD    := build
 SOURCES  := source
-LIBS     := -ltiny3d -lrsx -lsimdmath -lgcm_sys -lio -lsysutil -lrt -llv2 -lm
+LIBS     := -lfont3d -ltiny3d -lrsx -lsimdmath -lgcm_sys -lio -lsysutil -lrt -llv2 -lm
 CFLAGS   = -O2 -Wall -mcpu=cell $(MACHDEP) $(INCLUDE)
 LDFLAGS  = $(MACHDEP)
 

@@ -18,3 +18,21 @@ El proyecto se encuentra en su **versión 0.2**, funcionando de manera fluida en
   3. **Vista de Cabina (Primera Persona):** Tablero de instrumentos con radar, horizonte artificial dinámico, marco estructural y mira HUD central sensible al alabeo.
 * **Física de Vuelo Arcade:** Controles suavizados con inercia de giro, control de altitud, aceleración con postcombustión (`X` / `R2`) y tonel volado de 360° (*barrel roll* con `Cuadrado`).
 * **Personalización XMB y Diagnóstico:** Paquete `.pkg` personalizado con icono `ICON0.PNG`, fondo `PIC1.PNG` a 1080p y sistema de registro (`/dev_hdd0/ps3_fighter.log`) con marcas de tiempo para depuración en hardware real.
+
+## 📸 Capturas de Pantalla
+
+| Vista Cenital (Top-Down) | Vista 3D Persecución | Vista de Cabina (HUD) |
+| :---: | :---: | :---: |
+| <img src="docs/zenital.png" width="260"/> | <img src="docs/persecucion3d.png" width="260"/> | <img src="docs/cabina.png" width="260"/> |
+
+## 🕹️ Controles (DualShock 3)
+* **Stick Izquierdo / Cruceta:** Girar y controlar la altitud de vuelo.
+* **`X` o `R2`:** Activar propulsores (postcombustión).
+* **`Cuadrado`:** Realizar tonel volado (*barrel roll* 360°).
+* **`Triángulo`:** Alternar entre las 3 cámaras (Cenital / 3D Persecución / Cabina).
+* **`Start`:** Iniciar vuelo desde el menú / Salir al XMB.
+* **`Select`:** Volver al menú principal (modo demo).
+
+## 🙏 Créditos e Inspiración
+* **Concepto original:** Inspirado en [*fighter · Forge*](https://ui8.ai) (UI8 Forge).
+* **Librerías Homebrew:** Desarrollado sobre [PSL1GHT](https://github.com) y [Tiny3D](https://github.com) de Hermes.

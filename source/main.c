@@ -150,7 +150,7 @@ int main(int argc, const char* argv[]){
     float wx=(floorf(px/520)+ix)*520-px,wy=(floorf(py/520)+iy)*520-py;
     for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx,256+wy-s*2.2f,100-s,340,340,0,1,1);}
     for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx+90,256+wy-55-c*2.2f,15-c,72,72,0,1,1);}}
-   if(fc==1)wlog("6A2. Sombra");float ja=-(ang+PI*.5f),bk=cosf(roll)*(1-fabsf(cs)*.25f);
+   if(fc==1)wlog("6A2. Sombra");float ja=ang+PI*.5f,bk=cosf(roll)*(1-fabsf(cs)*.25f);
    tiny3d_SetTexture(0,shad_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+alt*.35f,256+alt*.35f,30,44,44,ja,bk,1);
    if(fc==1)wlog("6A3. Estelas");for(int k=1;k<48;k++){int i1=(tidx+k-1)%48,i2=(tidx+k)%48;
     float x1=tlx[i1]-px,y1=tly[i1]-py,x2=tlx[i2]-px,y2=tly[i2]-py;if(fabsf(x1-x2)<40&&fabsf(y1-y2)<40)line2d(424+x1,256+y1-alt*.4f,424+x2,256+y2-alt*.4f,22,0xAAFFFFFF);
@@ -174,6 +174,17 @@ int main(int argc, const char* argv[]){
    rect2d(416,445,16,67,6,0x11161DFF,0x232B38FF);
      }
   if(fc==1)wlog("6B. Geometria dibujada, iniciando fuente");SetCurrentFont(0);
-  if(demo){SetFontSize(24,36);SetFontAutoCenter(1);SetFontColor(0xFFFFFFFF,0x00000080);DrawString(0,110,"FIGHTER JET PS3 DEMO");if((fc/25)%2==0){SetFontSize(16,24);SetFontColor(0xFFFCBF49,0x00000080);DrawString(0,410,"PRESIONE START");}SetFontAutoCenter(0);}
+  if(demo){
+   rect2d(144,92,560,64,4,0x000000AA,0x000000AA);
+   SetFontAutoCenter(1);
+   SetFontSize(24,38);SetFontColor(0x000000FF,0x00000000);DrawString(3,108,"FIGHTER JET PS3 DEMO");
+   SetFontSize(24,38);SetFontColor(0xFFFFFFFF,0x00000000);DrawString(0,105,"FIGHTER JET PS3 DEMO");
+   if((fc/25)%2==0){
+    rect2d(224,394,400,56,4,0x000000BB,0x000000BB);
+    SetFontSize(22,34);SetFontColor(0x000000FF,0x00000000);DrawString(3,408,"PRESIONE START");
+    SetFontSize(22,34);SetFontColor(0xFCBF49FF,0x00000000);DrawString(0,405,"PRESIONE START");
+   }
+   SetFontAutoCenter(0);
+  }
   else{SetFontSize(10,16);SetFontColor(0xFFFFFFFF,0x00000060);DrawFormatString(16,14,"ALT:%02dM  CAM:%s  [TRI]VISTA [CUAD]TONEL [SEL]MENU",(int)alt,cam==0?"CENITAL":(cam==1?"3D PERSECUCION":"CABINA"));}
   if(fc==1)wlog("6C. Fuente dibujada, llamando Flip");tiny3d_Flip();if(fc==1)wlog("6D. Primer Flip RSX COMPLETADO!");}return 0;}

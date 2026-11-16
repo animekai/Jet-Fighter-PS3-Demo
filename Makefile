@@ -4,7 +4,7 @@ $(error "Please set PSL1GHT in your environment.")
 endif
 
 TITLE    := Fighter Jet PS3 Demo
-ICON0    := $(CURDIR)/ICON0.PNG
+ICON0    := $(CURDIR)/pkg/ICON0.PNG
 PIC1     := $(CURDIR)/PIC1.PNG
 PIC1     := $(CURDIR)/PIC1.PNG
 APPID    := FIGHTER3D

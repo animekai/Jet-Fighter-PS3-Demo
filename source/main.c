@@ -1,3 +1,7 @@
+#include <stdarg.h>
+#include <sysutil/video.h>
+#include <sys/systime.h>
+#include <sysutil/sysutil.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -24,34 +28,77 @@ u32 col_of(char c){
  if(c=='C')return 0xFF4CC9F0;if(c=='W')return 0xFFF1FAEE;if(c=='O')return 0xFFF77F00;
  if(c=='Y')return 0xFFFCBF49;return 0;
 }
+FILE *flog=NULL;
+u64 t_start_sec=0, t_start_nsec=0;
+void wlog(const char *fmt, ...){
+ if(!flog){remove("/dev_hdd0/ps3_fighter.log");flog=fopen("/dev_hdd0/ps3_fighter.log","w");sysGetCurrentTime(&t_start_sec,&t_start_nsec);}
+ if(flog){
+  u64 s,ns;sysGetCurrentTime(&s,&ns);
+  long ms=(long)((s-t_start_sec)*1000 + ((long)ns-(long)t_start_nsec)/1000000);
+  fprintf(flog,"[%06ld ms] ",ms);
+  va_list ap;va_start(ap,fmt);vfprintf(flog,fmt,ap);va_end(ap);
+  fprintf(flog,"\n");fflush(flog);
+ }
+}
+void sys_cb(u64 st,u64 prm,void *usr){wlog("SYSUTIL_EVENT: 0x%llx",(unsigned long long)st);if(st==SYSUTIL_EXIT_GAME){if(flog)fclose(flog);exit(0);}}
+void log_hw_info(){
+ videoState vs;videoResolution vr;
+ if(videoGetState(0,0,&vs)==0){
+  videoGetResolution(vs.displayMode.resolution,&vr);
+  wlog("VIDEO: state=%d scan=%d aspect=%d res=%dx%d (ID:%d)",vs.state,vs.displayMode.scanMode,vs.displayMode.aspect,vr.width,vr.height,vs.displayMode.resolution);
+ }else wlog("VIDEO: videoGetState fallo");
+ padInfo pi;ioPadGetInfo(&pi);
+ wlog("PADS: max=%d connected=%d status0=%d",pi.max,pi.connected,pi.status[0]);
+}
 void init_tex() {
- u32 *p = tiny3d_AllocTexture(24*1024*1024);
+ u32 *vram = tiny3d_AllocTexture(24*1024*1024);
+ if(!vram){wlog("ERROR: tiny3d_AllocTexture NULL");return;}
+ u32 *p = vram;
  ResetFont();
  p = (u32 *) AddFontFromBitmapArray((u8 *) msx, (u8 *) p, 0, 254, 8, 8, 1, BIT7_FIRST_PIXEL);
- for(int s=0;s<7;s++){for(int y=0;y<16;y++)for(int x=0;x<16;x++)p[y*16+x]=col_of(jet[s][y][x]);jet_off[s]=tiny3d_TextureOffset(p);p+=256;}
- for(int y=0;y<16;y++)for(int x=0;x<16;x++)p[y*16+x]=(jet[0][y][x]!='.')?0x66081426:0;
- shad_off=tiny3d_TextureOffset(p);p+=256;
- for(int i=0;i<16;i++)p[i]=0xFFFFFFFF;white_off=tiny3d_TextureOffset(p);p+=16;
- for(int s=0;s<6;s++){for(int y=0;y<128;y++)for(int x=0;x<128;x++){
-  float dx=(x-64)/64.f,dy=(y-64)/64.f,d=sqrtf(dx*dx+dy*dy)+sinf(x*.09f)*cosf(y*.09f)*.24f+sinf((x-y)*.06f)*.14f;u32 c=0;
-  if(s==0&&d<.78f)c=(d>.72f)?0xAAFFFFFF:0xFF48CAE4;else if(s==1&&d<.71f)c=0xFFE9C46A;else if(s==2&&d<.58f)c=(d>.54f)?0xFF52B788:0xFF74C69D;
-  else if(s==3&&d<.44f)c=(d>.40f)?0xFF40916C:0xFF52B788;else if(s==4&&d<.30f)c=((x+y)%13==0)?0xFF8D99AE:0xFF40916C;else if(s==5&&d<.36f&&((x*7+y*13)%9==0))c=0xFF1B4332;
-  p[y*128+x]=c;}isl_off[s]=tiny3d_TextureOffset(p);p+=16384;}
- for(int s=0;s<3;s++){for(int y=0;y<32;y++)for(int x=0;x<32;x++){float dx=(x-16)/16.f,dy=(y-16)/16.f;p[y*32+x]=(sqrtf(dx*dx+dy*dy)+sinf(x*.4f)*cosf(y*.4f)*.15f<.75f-s*.18f)?(s==0?0xFFD8E2DC:0xFFFFFFFF):0;}cloud_off[s]=tiny3d_TextureOffset(p);p+=1024;}
+ u32 *tmp = (u32 *)malloc(128*128*4);
+ for(int s=0;s<7;s++){
+  for(int y=0;y<16;y++)for(int x=0;x<16;x++)tmp[y*16+x]=col_of(jet[s][y][x]);
+  RSX_MEMCPY(p, tmp, 16*16*4); jet_off[s]=tiny3d_TextureOffset(p); p+=256;
+ }
+ for(int y=0;y<16;y++)for(int x=0;x<16;x++)tmp[y*16+x]=(jet[0][y][x]!=46)?0x66081426:0;
+ RSX_MEMCPY(p, tmp, 16*16*4); shad_off=tiny3d_TextureOffset(p); p+=256;
+ for(int i=0;i<256;i++)tmp[i]=0xFFFFFFFF;
+ RSX_MEMCPY(p, tmp, 16*16*4); white_off=tiny3d_TextureOffset(p); p+=256;
+ for(int s=0;s<6;s++){
+  for(int y=0;y<128;y++)for(int x=0;x<128;x++){
+   float dx=(x-64)/64.f,dy=(y-64)/64.f,d=sqrtf(dx*dx+dy*dy)+sinf(x*.09f)*cosf(y*.09f)*.24f+sinf((x-y)*.06f)*.14f;u32 c=0;
+   if(s==0&&d<.78f)c=(d>.72f)?0xAAFFFFFF:0xFF48CAE4;else if(s==1&&d<.71f)c=0xFFE9C46A;else if(s==2&&d<.58f)c=(d>.54f)?0xFF52B788:0xFF74C69D;
+   else if(s==3&&d<.44f)c=(d>.40f)?0xFF40916C:0xFF52B788;else if(s==4&&d<.30f)c=((x+y)%13==0)?0xFF8D99AE:0xFF40916C;else if(s==5&&d<.36f&&((x*7+y*13)%9==0))c=0xFF1B4332;
+   tmp[y*128+x]=c;
+  }
+  RSX_MEMCPY(p, tmp, 128*128*4); isl_off[s]=tiny3d_TextureOffset(p); p+=16384;
+ }
+ for(int s=0;s<3;s++){
+  for(int y=0;y<32;y++)for(int x=0;x<32;x++){float dx=(x-16)/16.f,dy=(y-16)/16.f;tmp[y*32+x]=(sqrtf(dx*dx+dy*dy)+sinf(x*.4f)*cosf(y*.4f)*.15f<.75f-s*.18f)?(s==0?0xFFD8E2DC:0xFFFFFFFF):0;}
+  RSX_MEMCPY(p, tmp, 32*32*4); cloud_off[s]=tiny3d_TextureOffset(p); p+=1024;
+ }
+ free(tmp);
 }
 void quad2d(float x,float y,float z,float w,float h,float a,float sx,float sy){
- MATRIX m=MatrixMultiply(MatrixRotationZ(a),MatrixTranslation(x,y,0));tiny3d_SetMatrixModelView(&m);float hw=w*.5f*sx,hh=h*.5f*sy;
- tiny3d_SetPolygon(TINY3D_QUADS);tiny3d_VertexPos(-hw,-hh,z);tiny3d_VertexColor(0xFFFFFFFF);tiny3d_VertexTexture(0,0);
- tiny3d_VertexPos(hw,-hh,z);tiny3d_VertexTexture(.99f,0);tiny3d_VertexPos(hw,hh,z);tiny3d_VertexTexture(.99f,.99f);tiny3d_VertexPos(-hw,hh,z);tiny3d_VertexTexture(0,.99f);tiny3d_End();tiny3d_SetMatrixModelView(NULL);
+ float hw=w*.5f*sx,hh=h*.5f*sy,c=cosf(a),s=sinf(a);
+ float x0=-hw*c+hh*s,y0=-hw*s-hh*c,x1=hw*c+hh*s,y1=hw*s-hh*c;
+ float x2=hw*c-hh*s,y2=hw*s+hh*c,x3=-hw*c-hh*s,y3=-hw*s+hh*c;
+ tiny3d_SetPolygon(TINY3D_QUADS);
+ tiny3d_VertexPos(x+x0,y+y0,z);tiny3d_VertexColor(0xFFFFFFFF);tiny3d_VertexTexture(0.0f,0.0f);
+ tiny3d_VertexPos(x+x1,y+y1,z);tiny3d_VertexTexture(0.99f,0.0f);
+ tiny3d_VertexPos(x+x2,y+y2,z);tiny3d_VertexTexture(0.99f,0.99f);
+ tiny3d_VertexPos(x+x3,y+y3,z);tiny3d_VertexTexture(0.0f,0.99f);
+ tiny3d_End();
 }
 void rect2d(float x,float y,float w,float h,float z,u32 c1,u32 c2){
- tiny3d_SetTexture(0,white_off,4,4,16,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
+ tiny3d_SetTexture(0,white_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
  tiny3d_SetPolygon(TINY3D_QUADS);tiny3d_VertexPos(x,y,z);tiny3d_VertexColor(c1);tiny3d_VertexTexture(0,0);tiny3d_VertexPos(x+w,y,z);tiny3d_VertexColor(c1);tiny3d_VertexTexture(1,0);
  tiny3d_VertexPos(x+w,y+h,z);tiny3d_VertexColor(c2);tiny3d_VertexTexture(1,1);tiny3d_VertexPos(x,y+h,z);tiny3d_VertexColor(c2);tiny3d_VertexTexture(0,1);tiny3d_End();
 }
 void line2d(float x1,float y1,float x2,float y2,float z,u32 c){
- tiny3d_SetTexture(0,white_off,4,4,16,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
- tiny3d_SetPolygon(TINY3D_LINES);tiny3d_VertexPos(x1,y1,z);tiny3d_VertexColor(c);tiny3d_VertexTexture(0,0);tiny3d_VertexPos(x2,y2,z);tiny3d_VertexTexture(1,1);tiny3d_End();
+ tiny3d_SetTexture(0,white_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
+ float dx=x2-x1,dy=y2-y1,l=sqrtf(dx*dx+dy*dy);if(l>0.1f){float nx=-dy/l*1.5f,ny=dx/l*1.5f;tiny3d_SetPolygon(TINY3D_QUADS);tiny3d_VertexPos(x1+nx,y1+ny,z);tiny3d_VertexColor(c);tiny3d_VertexTexture(0,0);tiny3d_VertexPos(x2+nx,y2+ny,z);tiny3d_VertexTexture(1,0);tiny3d_VertexPos(x2-nx,y2-ny,z);tiny3d_VertexTexture(1,1);tiny3d_VertexPos(x1-nx,y1-ny,z);tiny3d_VertexTexture(0,1);tiny3d_End();}
 }
 void quad_persp(float x0,float z0,float x1,float z1,float x2,float z2,float x3,float z3,float yw,float hor,float zbuf){
  float s0=240.f/z0,s1=240.f/z1,s2=240.f/z2,s3=240.f/z3;
@@ -77,9 +124,9 @@ void draw_world_3d(float px,float py,float ang,float alt,float cp,float cs){
    }}}
 }
 int main(int argc, const char* argv[]){
- padInfo pi;padData pd;tiny3d_Init(4*1024*1024);ioPadInit(7);init_tex();
+ padInfo pi;padData pd;wlog("1. Inicio main");sysUtilRegisterCallback(0,sys_cb,NULL);tiny3d_Init(4*1024*1024);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_Flip();}wlog("3. HDMI Flip OK");ioPadInit(7);init_tex();wlog("4. Texturas OK");
  float px=0,py=0,ang=-PI*.5f,alt=38,roll=0,cs=0,cp=0,ct=1;int demo=1,cam=0,bt=0,bs=0,bst=0,bsel=0,fc=0;
- while(1){
+ wlog("5. Entrando a bucle principal");while(1){sysUtilCheckCallback();
   ioPadGetInfo(&pi);float ts=0,tp=0,tt=1;fc++;
   if(demo){ts=sinf(fc*.015f)*.65f;tp=cosf(fc*.02f)*.35f;if(fc%240==0&&roll<=.01f)roll=2*PI;}
   for(int i=0;i<MAX_PADS;i++)if(pi.status[i]){ioPadGetData(i,&pd);
@@ -94,10 +141,10 @@ int main(int argc, const char* argv[]){
   if(alt<12)alt=12;if(alt>95)alt=95;if(roll>0){roll-=.18f;if(roll<0)roll=0;}
   px+=cosf(ang)*2.6f*ct;py+=sinf(ang)*2.6f*ct;
   if(fc%2==0){float wa=ang+PI*.5f,sp=18*cosf(roll)*(1-fabsf(cs)*.2f);tlx[tidx]=px+cosf(wa)*sp-cosf(ang)*10;tly[tidx]=py+sinf(wa)*sp-sinf(ang)*10;trx[tidx]=px-cosf(wa)*sp-cosf(ang)*10;try_arr[tidx]=py-sinf(wa)*sp-sinf(ang)*10;tidx=(tidx+1)%48;}
-  tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_AlphaTest(1,0x10,TINY3D_ALPHA_FUNC_GEQUAL);
+  if(fc==1)wlog("6A. Clear inicio");tiny3d_Clear(0x2468B4FF,TINY3D_CLEAR_ALL);tiny3d_AlphaTest(1,0x10,TINY3D_ALPHA_FUNC_GEQUAL);
   tiny3d_BlendFunc(1,TINY3D_BLEND_FUNC_SRC_RGB_SRC_ALPHA|TINY3D_BLEND_FUNC_SRC_ALPHA_SRC_ALPHA,TINY3D_BLEND_FUNC_DST_RGB_ONE_MINUS_SRC_ALPHA|TINY3D_BLEND_FUNC_DST_ALPHA_ZERO,TINY3D_BLEND_RGB_FUNC_ADD|TINY3D_BLEND_ALPHA_FUNC_ADD);
   tiny3d_Project2D();
-  if(cam==0){
+  if(cam==0){if(fc==1)wlog("6A1. Dibujando islas");
    for(int ix=-1;ix<=1;ix++)for(int iy=-1;iy<=1;iy++){
     float wx=(floorf(px/520)+ix)*520-px,wy=(floorf(py/520)+iy)*520-py;
     for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx,256+wy-s*2.2f,100-s,340,340,0,1,1);}
@@ -125,7 +172,7 @@ int main(int argc, const char* argv[]){
    rect2d(374,382,100,100,8,0x2B6CB0FF,0x9C4221FF);line2d(374,432+cp*20,474,432+cp*20,7,0xFFFFFFFF);
    rect2d(416,445,16,67,6,0x11161DFF,0x232B38FF);
      }
-  SetCurrentFont(0);
+  if(fc==1)wlog("6B. Geometria dibujada, iniciando fuente");SetCurrentFont(0);
   if(demo){SetFontSize(24,36);SetFontAutoCenter(1);SetFontColor(0xFFFFFFFF,0x00000080);DrawString(0,110,"PS3 FIGHTER STACK");if((fc/25)%2==0){SetFontSize(16,24);SetFontColor(0xFFFCBF49,0x00000080);DrawString(0,410,"PRESIONE START");}SetFontAutoCenter(0);}
   else{SetFontSize(10,16);SetFontColor(0xFFFFFFFF,0x00000060);DrawFormatString(16,14,"ALT:%02dM  CAM:%s  [TRI]VISTA [CUAD]TONEL [SEL]MENU",(int)alt,cam==0?"CENITAL":(cam==1?"3D PERSECUCION":"CABINA"));}
-  tiny3d_Flip();}return 0;}
+  if(fc==1)wlog("6C. Fuente dibujada, llamando Flip");tiny3d_Flip();if(fc==1)wlog("6D. Primer Flip RSX COMPLETADO!");}return 0;}

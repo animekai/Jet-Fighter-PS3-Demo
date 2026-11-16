@@ -5,10 +5,13 @@ endif
 
 TITLE    := Jet Fighter Demo PS3
 ICON0    := $(CURDIR)/ICON0.PNG
+PIC1     := $(CURDIR)/PIC1.PNG
+PIC1     := $(CURDIR)/PIC1.PNG
 APPID    := FIGHTER3D
 CONTENTID:= UP0001-$(APPID)_00-0000000000000000
 APPVER   := 01.02
 
+PKGFILES := $(CURDIR)/pkg
 include $(PSL1GHT)/ppu_rules
 
 TARGET   := ps3-fighter_0.2

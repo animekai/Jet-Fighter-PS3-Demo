@@ -3,7 +3,7 @@ ifeq ($(strip $(PSL1GHT)),)
 $(error "Please set PSL1GHT in your environment.")
 endif
 
-TITLE    := Fighter Jet PS3 Demo v0.3 [1116_0552]
+TITLE    := Fighter Jet PS3 Demo v0.3 [1116_0733]
 ICON0    := $(CURDIR)/pkg/ICON0.PNG
 PIC1     := $(CURDIR)/PIC1.PNG
 PIC1     := $(CURDIR)/PIC1.PNG

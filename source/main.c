@@ -171,19 +171,26 @@ void tex_box(u32 tex,float x,float y,float w,float h,float z){
  tiny3d_End();
 }
 void draw_world_3d(float px,float py,float ang,float alt,float cp,float cs){
- float ca=-ang-PI*.5f,hor=230+cp*40,co=cosf(ca),si=sinf(ca);
- tex_box(sky_off,0,0,848,hor,65535);
- tex_box(sea_off,0,hor,848,512-hor,65535);
- for(int ix=-2;ix<=2;ix++)for(int iy=-2;iy<=2;iy++){
+ float ca=-ang-PI*.5f,hor=225+cp*45,co=cosf(ca),si=sinf(ca);
+ 
+ tex_box(sky_off,0,0,848,hor,1000);
+ tex_box(sea_off,0,hor,848,512-hor,1000);
+ for(int dist=3;dist>=1;dist--)for(int ix=-dist;ix<=dist;ix++)for(int iy=-dist;iy<=dist;iy++){
+  if(abs(ix)!=dist&&abs(iy)!=dist)continue;
   float wx=(floorf(px/520)+ix)*520-px,wy=(floorf(py/520)+iy)*520-py;
   float cx=wx*co-wy*si,cz=-(wx*si+wy*co);
-  if(cz>140&&cz<950){float h=170.f;
-   float x0=cx-h*co+h*si,z0=cz-h*si-h*co,x1=cx+h*co+h*si,z1=cz+h*si-h*co;
-   float x2=cx+h*co-h*si,z2=cz+h*si+h*co,x3=cx-h*co-h*si,z3=cz-h*si+h*co;
-   if(z0>45&&z1>45&&z2>45&&z3>45){
-    for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0,z0,x1,z1,x2,z2,x3,z3,alt*1.5f-s*3.5f,hor,500-cz-s);}
-    for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0+70,z0,x1+70,z1,x2+70,z2,x3+70,z3,alt*1.5f-45-c*3.0f,hor,480-cz-c);}
-   }}}
+  if(cz>150&&cz<1350&&fabsf(cx)<cz*1.55f){float h=175.f;
+   float x0=cx-h*co+h*si,z0=cz+(h*si+h*co);
+   float x1=cx+h*co+h*si,z1=cz+(-h*si+h*co);
+   float x2=cx+h*co-h*si,z2=cz+(-h*si-h*co);
+   float x3=cx-h*co-h*si,z3=cz+(h*si-h*co);
+   if(z0>110&&z1>110&&z2>110&&z3>110){
+    for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0,z0,x1,z1,x2,z2,x3,z3,alt*1.55f-s*3.4f,hor,10);}
+    for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0+80,z0+40,x1+80,z1+40,x2+80,z2+40,x3+80,z3+40,alt*1.55f-48-c*3.2f,hor,10);}
+   }
+  }
+ }
+ 
 }
 void draw_text(float x, float y, float z, float sc, const char *s){
  tiny3d_SetTexture(0,font_off,128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
@@ -208,54 +215,60 @@ void ui_box(float x,float y,float w,float h,float z){
  tiny3d_End();
 }
 u32 snd_port=0;audioPortConfig snd_cfg;int snd_ok=0;u64 snd_key;sys_event_queue_t snd_q;
-float ph_l=0,ph_b1=0,ph_b2=0,ph_b3=0,ph_p1=0,ph_p2=0,ph_p3=0,ph_arp=0,ph_kick=0,ph_snare=0,ph_hat=0,ph_roll=0;
-float env_l=0,env_b=0,lp_b=0,lp_l=0,lp_r=0,sin_tab[256],dly_l[9600]={0},dly_r[9600]={0};int dly_p=0;
-u32 n_seed=987654321,m_seed=135792468;int last_step=-1,snd_fc=0,prog_idx=0;
-float cur_fl=0,tgt_fl=0,cur_fb=55.f,cur_fa=0,cur_fp1=220.f,cur_fp2=261.63f,cur_fp3=329.63f;
-volatile float v_ct=1.f,v_cs=0.f,v_roll=0.f;volatile int v_demo=1;
-const float sw_scale[10]={220.00f,246.94f,261.63f,293.66f,329.63f,349.23f,392.00f,440.00f,493.88f,523.25f};
-const float sw_roots[16]={110.00f,87.31f,130.81f,98.00f, 146.83f,110.00f,87.31f,82.41f, 98.00f,110.00f,87.31f,130.81f, 130.81f,98.00f,110.00f,87.31f};
-const float sw_thirds[16]={130.81f,110.00f,164.81f,123.47f, 174.61f,130.81f,110.00f,103.83f, 123.47f,130.81f,110.00f,164.81f, 164.81f,123.47f,130.81f,110.00f};
-const float sw_fifths[16]={164.81f,130.81f,196.00f,146.83f, 220.00f,164.81f,130.81f,123.47f, 146.83f,164.81f,130.81f,196.00f, 196.00f,146.83f,164.81f,130.81f};
+float ph_sax=0,ph_b=0,ph_p1=0,ph_p2=0,ph_p3=0,ph_p4=0,ph_kick=0,ph_snare=0,ph_hat=0,ph_roll=0;
+float env_sax=0,env_b=0,env_ep=0,lp_l=0,lp_r=0,sin_tab[256],dly_l[9600]={0},dly_r[9600]={0};int dly_p=0;
+u32 n_seed=987654321,m_seed=135792468;int last_step=-1,snd_fc=0,prog_idx=0,track_id=-1;
+float pitch_mult=1.0f,cur_fsax=0,tgt_fsax=0,cur_fb=87.31f,fp1=261.63f,fp2=329.63f,fp3=392.0f,fp4=493.88f;
+int track_tempo=30,bass_mode=0;volatile float v_ct=1.f,v_cs=0.f,v_roll=0.f;volatile int v_demo=1;
+/* Escala City Pop (Pentatonica Mayor + Blue Note) y Acordes Maj7 / m7 / 9 */
+const float cp_scale[10]={261.63f,293.66f,329.63f,392.00f,440.00f,493.88f,523.25f,587.33f,659.25f,783.99f};
+const float cp_r[8]={87.31f,82.41f,110.00f,65.41f, 73.42f,98.00f,130.81f,130.81f}; /* FMaj7-Em7-Am7-CMaj7 / Dm7-G7-CMaj7 */
+const float cp_3[8]={110.00f,98.00f,130.81f,82.41f, 87.31f,123.47f,164.81f,155.56f};
+const float cp_5[8]={130.81f,123.47f,164.81f,98.00f, 110.00f,146.83f,196.00f,196.00f};
+const float cp_7[8]={164.81f,146.83f,196.00f,123.47f, 130.81f,174.61f,246.94f,233.08f};
 u32 next_rng(){m_seed=m_seed*1664525u+1013904223u;return m_seed;}
-float saw(float p){return 2.f*p-1.f;}
+float osc_ep(float p){int i=(int)(p*256.f)&255;return sin_tab[i]*0.78f+sin_tab[(i*2)&255]*0.22f+sin_tab[(i*7)&255]*0.08f*env_ep;}
+float osc_sax(float p){int i=(int)(p*256.f)&255;return sin_tab[i]*0.65f+sin_tab[(i*2)&255]*0.25f+sin_tab[(i*3)&255]*0.22f+sin_tab[(i*5)&255]*0.10f;}
 void audio_thread(void *arg){
  sys_event_t ev;
  while(snd_ok){
   if(sysEventQueueReceive(snd_q,&ev,20000)!=0)continue;
   u64 cur=*(u64*)((u64)snd_cfg.readIndex);u32 nxt=(cur+1)%snd_cfg.numBlocks;
   f32 *buf=(f32*)((u64)snd_cfg.audioDataStart)+snd_cfg.channelCount*AUDIO_BLOCK_SAMPLES*nxt;
-  snd_fc++;int step=snd_fc/32;
+  snd_fc++;int new_tr=snd_fc/9375;
+  if(new_tr!=track_id){track_id=new_tr;u32 tr=next_rng();const float ks[5]={1.0f,1.122f,0.891f,1.189f,0.944f};pitch_mult=ks[(tr&7)%5];track_tempo=28+((tr>>4)&7);bass_mode=(tr>>8)%3;prog_idx=(tr>>12)&1;}
+  int step=snd_fc/track_tempo;
   if(step!=last_step){
-   last_step=step;u32 r=next_rng();int bar=(step/16)%8;if((step%16)==0)prog_idx=(r>>14)&3;
-   int ci=(prog_idx*4)+(bar%4);cur_fb=sw_roots[ci]*((step&1)?1.f:.5f);env_b=1.f;
-   cur_fp1=sw_roots[ci]*2.f;cur_fp2=sw_thirds[ci]*2.f;cur_fp3=sw_fifths[ci]*2.f;
-   cur_fa=(step%4==0)?cur_fp1:((step%4==2)?cur_fp3:cur_fp2);
-   if((step%2)==0){if(((r>>4)&7)<5){tgt_fl=sw_scale[(r&7)+((r>>10)&1)*2]*(((r>>18)&3)==0?2.f:(((r>>18)&3)==1?0.5f:1.f));if(cur_fl<1.f)cur_fl=tgt_fl;env_l=1.f;}else if(((r>>8)&3)==0)tgt_fl=0.f;}
-   if((step%4)==0)ph_kick=1.f;if((step%8)==4||((step%32)>=28&&(r&1)))ph_snare=1.f;if((step%2)==1)ph_hat=1.f;
+   last_step=step;u32 r=next_rng();int bar=(step/16)%4,ci=(prog_idx*4)+bar;
+   if((step%8)==0||(step%16)==6||(step%16)==14){fp1=cp_r[ci]*2.f*pitch_mult;fp2=cp_3[ci]*2.f*pitch_mult;fp3=cp_5[ci]*2.f*pitch_mult;fp4=cp_7[ci]*2.f*pitch_mult;env_ep=1.0f;}
+   float oct=((step%4)==2||(step%8)==7)?2.0f:1.0f;cur_fb=cp_r[ci]*pitch_mult*oct;env_b=1.0f;
+   if((step%2)==0){if(((r>>4)&7)<5){tgt_fsax=cp_scale[(r&7)+((r>>10)&1)*2]*pitch_mult;if(cur_fsax<1.f)cur_fsax=tgt_fsax;env_sax=0.2f;}else if(((r>>8)&3)==0)tgt_fsax=0.f;}
+   if((step%8)==0||(step%8)==3||(step%8)==5)ph_kick=1.f;
+   if((step%8)==4||((step%32)>=29&&(r&1)))ph_snare=1.f;
+   ph_hat=1.f;
   }
   float ct=v_ct,cs=v_cs,roll=v_roll;int demo=v_demo;
   for(int i=0;i<AUDIO_BLOCK_SAMPLES;i++){
-   float lead=0;if(tgt_fl>1.f){cur_fl+=(tgt_fl-cur_fl)*.0018f;float vib=1.f+.0035f*sin_tab[(snd_fc*5+i/20)&255];ph_l+=(cur_fl*vib)/48000.f;if(ph_l>=1.f)ph_l-=1.f;float p2=ph_l*1.004f;if(p2>=1.f)p2-=1.f;lead=(saw(ph_l)*.55f+saw(p2)*.45f)*.12f*env_l;env_l*=.99991f;}
-   ph_b1+=cur_fb/48000.f;if(ph_b1>=1.f)ph_b1-=1.f;ph_b2+=(cur_fb*1.005f)/48000.f;if(ph_b2>=1.f)ph_b2-=1.f;ph_b3+=(cur_fb*.995f)/48000.f;if(ph_b3>=1.f)ph_b3-=1.f;
-   lp_b+=((saw(ph_b1)+saw(ph_b2)+saw(ph_b3))*.33f-lp_b)*(.06f+.24f*env_b);env_b*=.9994f;float bass=lp_b*.36f;
-   ph_p1+=cur_fp1/48000.f;if(ph_p1>=1.f)ph_p1-=1.f;ph_p2+=(cur_fp2*1.002f)/48000.f;if(ph_p2>=1.f)ph_p2-=1.f;ph_p3+=(cur_fp3*.998f)/48000.f;if(ph_p3>=1.f)ph_p3-=1.f;
-   float pad=(sin_tab[(int)(ph_p1*256.f)&255]+sin_tab[(int)(ph_p2*256.f)&255]+sin_tab[(int)(ph_p3*256.f)&255])*.048f;
-   ph_arp+=cur_fa/48000.f;if(ph_arp>=1.f)ph_arp-=1.f;float arp=(saw(ph_arp)*.4f+sin_tab[(int)(ph_arp*256.f)&255]*.6f)*.042f;
+   float sax=0;if(tgt_fsax>1.f){cur_fsax+=(tgt_fsax-cur_fsax)*0.0025f;float vib=1.f+0.006f*sin_tab[(snd_fc*7+i/16)&255];ph_sax+=(cur_fsax*vib)/48000.f;if(ph_sax>=1.f)ph_sax-=1.f;if(env_sax<1.f)env_sax+=0.0004f;sax=osc_sax(ph_sax)*0.17f*env_sax;}
+   ph_p1+=fp1/48000.f;if(ph_p1>=1.f)ph_p1-=1.f;ph_p2+=fp2/48000.f;if(ph_p2>=1.f)ph_p2-=1.f;ph_p3+=fp3/48000.f;if(ph_p3>=1.f)ph_p3-=1.f;ph_p4+=fp4/48000.f;if(ph_p4>=1.f)ph_p4-=1.f;
+   float piano=(osc_ep(ph_p1)+osc_ep(ph_p2)+osc_ep(ph_p3)+osc_ep(ph_p4))*0.068f*env_ep;env_ep*=0.99993f;
+   ph_b+=cur_fb/48000.f;if(ph_b>=1.f)ph_b-=1.f;int ib=(int)(ph_b*256.f)&255;
+   float bass=(sin_tab[ib]*0.75f+sin_tab[(ib*2)&255]*0.35f*env_b+sin_tab[(ib*4)&255]*0.15f*env_b)*0.28f;env_b*=0.9992f;
    n_seed=n_seed*1664525u+1013904223u;float nz=((float)(n_seed>>16)/32768.f)-1.f;
-   float kick=(ph_kick>.01f)?sin_tab[(int)(ph_kick*1250.f)&255]*ph_kick*.36f:0.f;ph_kick*=.9987f;
-   float snare=(ph_snare>.01f)?(nz*.78f+sin_tab[(int)(ph_snare*720.f)&255]*.22f)*ph_snare*.21f:0.f;ph_snare*=.9989f;
-   float hat=(ph_hat>.01f)?nz*ph_hat*.042f:0.f;ph_hat*=.992f;
-   float eng=nz*(.02f+(ct-1.f)*.055f+fabsf(cs)*.022f),wh=0;if(roll>.05f){ph_roll+=(340.f+sinf(roll)*160.f)/48000.f;if(ph_roll>=1.f)ph_roll-=1.f;wh=sin_tab[(int)(ph_roll*256.f)&255]*.1f;}
-   float mid=bass+kick+snare+pad+(demo?0.f:(eng+wh)),sl=mid+lead*.85f+arp*.35f+hat*.65f,sr=mid+lead*.35f+arp*.85f+hat*.95f;
-   int dr=(dly_p+3600)%9600;float ol=sl+dly_r[dly_p]*.32f,or_=sr+dly_l[dr]*.32f;dly_l[dly_p]=sl;dly_r[dly_p]=sr;dly_p=(dly_p+1)%9600;
-   lp_l+=(ol-lp_l)*.48f;lp_r+=(or_-lp_r)*.48f;buf[i*2]=lp_l>.92f?.92f:(lp_l<-.92f?-.92f:lp_l);buf[i*2+1]=lp_r>.92f?.92f:(lp_r<-.92f?-.92f:lp_r);
+   float kick=(ph_kick>.01f)?sin_tab[(int)(ph_kick*1150.f)&255]*ph_kick*0.34f:0.f;ph_kick*=0.9986f;
+   float snare=(ph_snare>.01f)?(nz*0.82f+sin_tab[(int)(ph_snare*680.f)&255]*0.18f)*ph_snare*0.20f:0.f;ph_snare*=0.9988f;
+   float hat=(ph_hat>.01f)?nz*ph_hat*((step%2)==0?0.03f:0.055f):0.f;ph_hat*=0.991f;
+   float eng=nz*(0.02f+(ct-1.f)*0.055f+fabsf(cs)*0.022f),wh=0;if(roll>.05f){ph_roll+=(340.f+sinf(roll)*160.f)/48000.f;if(ph_roll>=1.f)ph_roll-=1.f;wh=sin_tab[(int)(ph_roll*256.f)&255]*0.1f;}
+   float mid=bass+kick+snare+(demo?0.f:(eng+wh)),sl=mid+sax*0.85f+piano*0.55f+hat*0.7f,sr=mid+sax*0.45f+piano*0.85f+hat*0.9f;
+   int dr=(dly_p+3200)%9600;float ol=sl+dly_r[dly_p]*0.25f,or_=sr+dly_l[dr]*0.25f;dly_l[dly_p]=sl;dly_r[dly_p]=sr;dly_p=(dly_p+1)%9600;
+   lp_l+=(ol-lp_l)*0.55f;lp_r+=(or_-lp_r)*0.55f;buf[i*2]=lp_l>.92f?.92f:(lp_l<-.92f?-.92f:lp_l);buf[i*2+1]=lp_r>.92f?.92f:(lp_r<-.92f?-.92f:lp_r);
   }
  }
 }
-void init_snd(){for(int k=0;k<256;k++)sin_tab[k]=sinf((k/256.f)*6.2831853f);audioPortParam pr={AUDIO_PORT_2CH,AUDIO_BLOCK_8,AUDIO_PORT_INITLEVEL,0.95f};if(audioInit()==0&&audioPortOpen(&pr,&snd_port)==0&&audioGetPortConfig(snd_port,&snd_cfg)==0&&audioCreateNotifyEventQueue(&snd_q,&snd_key)==0&&audioSetNotifyEventQueue(snd_key)==0){u64 ts,tns;sysGetCurrentTime(&ts,&tns);m_seed^=(u32)(ts^tns);sysEventQueueDrain(snd_q);audioPortStart(snd_port);snd_ok=1;sys_ppu_thread_t tid;sysThreadCreate(&tid,audio_thread,NULL,1000,0x4000,THREAD_JOINABLE,"snd_sw");wlog("AUDIO: Synthwave OK");}}
+void init_snd(){for(int k=0;k<256;k++)sin_tab[k]=sinf((k/256.f)*6.2831853f);audioPortParam pr={AUDIO_PORT_2CH,AUDIO_BLOCK_8,AUDIO_PORT_INITLEVEL,0.95f};if(audioInit()==0&&audioPortOpen(&pr,&snd_port)==0&&audioGetPortConfig(snd_port,&snd_cfg)==0&&audioCreateNotifyEventQueue(&snd_q,&snd_key)==0&&audioSetNotifyEventQueue(snd_key)==0){u64 ts,tns;sysGetCurrentTime(&ts,&tns);m_seed^=(u32)(ts^tns);sysEventQueueDrain(snd_q);audioPortStart(snd_port);snd_ok=1;sys_ppu_thread_t tid;sysThreadCreate(&tid,audio_thread,NULL,1000,0x4000,THREAD_JOINABLE,"snd_cp");wlog("AUDIO: City Pop Japones Autentico OK");}}
 void update_snd(int fc,float ct,float cs,float roll,int demo){v_ct=ct;v_cs=cs;v_roll=roll;v_demo=demo;}
 int main(int argc, const char* argv[]){
+ int fps=60,fps_c=0;u64 fps_t=0,now_s=0,now_ns=0;
  padInfo pi;padData pd;wlog("1. Inicio main (TS:%llu)",(unsigned long long)time(NULL));sysUtilRegisterCallback(0,sys_cb,NULL);int r_t3d=tiny3d_Init(4*1024*1024);wlog("tiny3d_Init ret: 0x%x", r_t3d);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_Flip();}wlog("3. HDMI Flip OK");int r_pad=ioPadInit(7);init_snd();wlog("ioPadInit ret: 0x%x", r_pad);init_tex();wlog("4. Texturas OK");
  float px=0,py=0,ang=-PI*.5f,alt=38,roll=0,cs=0,cp=0,ct=1;int demo=1,cam=0,bt=0,bs=0,bst=0,bsel=0,fc=0;
  wlog("5. Entrando a bucle principal");while(1){sysUtilCheckCallback();
@@ -369,10 +382,5 @@ int main(int argc, const char* argv[]){
     ui_box(214,395,420,48,4);
     draw_text(236,408,3,3.0f,"PRESIONE START");
    }
-  }else{
-   ui_box(12,10,560,26,4);
-   char buf[96];
-   sprintf(buf,"ALT:%02dM  CAM:%s  OST:SYNTHWAVE",(int)alt,cam==0?"CENITAL":(cam==1?"3D":"CABINA"));
-   draw_text(20,17,3,1.5f,buf);
   }
   update_snd(fc,ct,cs,roll,demo);tiny3d_Flip();if(fc==1)wlog("6D. Primer Flip RSX COMPLETADO!");if(fc==10)wlog("7. 10 FRAMES FLUIDOS EN PS3 REAL!");}return 0;}

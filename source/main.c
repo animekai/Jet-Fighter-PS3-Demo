@@ -12,7 +12,7 @@
 
 extern unsigned char msx[];
 #define PI 3.14159265f
-u32 jet_off[7], shad_off, white_off, isl_off[6], cloud_off[3];
+u32 jet_off[7], shad_off, white_off, font_off, ui_bg_off, isl_off[6], cloud_off[3];
 float tlx[48], tly[48], trx[48], try_arr[48];
 int tidx = 0;
 const char *jet[7][16] = {
@@ -51,21 +51,19 @@ void log_hw_info(){
  padInfo pi;ioPadGetInfo(&pi);
  wlog("PADS: max=%d connected=%d status0=%d",pi.max,pi.connected,pi.status[0]);
 }
+u32* al128(u32 *p){uintptr_t a=(uintptr_t)p;return (u32*)((a+127)&~((uintptr_t)127));}
 void init_tex() {
  u32 *vram = tiny3d_AllocTexture(24*1024*1024);
- if(!vram){wlog("ERROR: tiny3d_AllocTexture NULL");return;}
- u32 *p = vram;
- ResetFont();
- p = (u32 *) AddFontFromBitmapArray((u8 *) msx, (u8 *) p, 0, 254, 8, 8, 1, BIT7_FIRST_PIXEL);
+ u32 *p = (u32 *)(((uintptr_t)vram + 255) & ~((uintptr_t)255));
  u32 *tmp = (u32 *)malloc(128*128*4);
  for(int s=0;s<7;s++){
   for(int y=0;y<16;y++)for(int x=0;x<16;x++)tmp[y*16+x]=col_of(jet[s][y][x]);
-  RSX_MEMCPY(p, tmp, 16*16*4); jet_off[s]=tiny3d_TextureOffset(p); p+=256;
+  RSX_MEMCPY(p, tmp, 16*16*4); jet_off[s]=tiny3d_TextureOffset(p); p=al128(p+256);
  }
- for(int y=0;y<16;y++)for(int x=0;x<16;x++)tmp[y*16+x]=(jet[0][y][x]!=46)?0x66081426:0;
- RSX_MEMCPY(p, tmp, 16*16*4); shad_off=tiny3d_TextureOffset(p); p+=256;
- for(int i=0;i<256;i++)tmp[i]=0xFFFFFFFF;
- RSX_MEMCPY(p, tmp, 16*16*4); white_off=tiny3d_TextureOffset(p); p+=256;
+ for(int y=0;y<16;y++)for(int x=0;x<16;x++)tmp[y*16+x]=(jet[y][x]!=46)?0x66081426:0;
+ RSX_MEMCPY(p, tmp, 16*16*4); shad_off=tiny3d_TextureOffset(p); p=al128(p+256);
+ for(int k=0;k<256;k++)tmp[k]=0xFFFFFFFF;
+ RSX_MEMCPY(p, tmp, 16*16*4); white_off=tiny3d_TextureOffset(p); p=al128(p+256);
  for(int s=0;s<6;s++){
   for(int y=0;y<128;y++)for(int x=0;x<128;x++){
    float dx=(x-64)/64.f,dy=(y-64)/64.f,d=sqrtf(dx*dx+dy*dy)+sinf(x*.09f)*cosf(y*.09f)*.24f+sinf((x-y)*.06f)*.14f;u32 c=0;
@@ -73,20 +71,31 @@ void init_tex() {
    else if(s==3&&d<.44f)c=(d>.40f)?0xFF40916C:0xFF52B788;else if(s==4&&d<.30f)c=((x+y)%13==0)?0xFF8D99AE:0xFF40916C;else if(s==5&&d<.36f&&((x*7+y*13)%9==0))c=0xFF1B4332;
    tmp[y*128+x]=c;
   }
-  RSX_MEMCPY(p, tmp, 128*128*4); isl_off[s]=tiny3d_TextureOffset(p); p+=16384;
+  RSX_MEMCPY(p, tmp, 128*128*4); isl_off[s]=tiny3d_TextureOffset(p); p=al128(p+16384);
  }
  for(int s=0;s<3;s++){
   for(int y=0;y<32;y++)for(int x=0;x<32;x++){float dx=(x-16)/16.f,dy=(y-16)/16.f;tmp[y*32+x]=(sqrtf(dx*dx+dy*dy)+sinf(x*.4f)*cosf(y*.4f)*.15f<.75f-s*.18f)?(s==0?0xFFD8E2DC:0xFFFFFFFF):0;}
-  RSX_MEMCPY(p, tmp, 32*32*4); cloud_off[s]=tiny3d_TextureOffset(p); p+=1024;
+  RSX_MEMCPY(p, tmp, 32*32*4); cloud_off[s]=tiny3d_TextureOffset(p); p=al128(p+1024);
  }
+  for(int k=0;k<256;k++)tmp[k]=0xAA0A101A;
+ RSX_MEMCPY(p, tmp, 16*16*4); ui_bg_off=tiny3d_TextureOffset(p); p=al128(p+256);
+ memset(tmp, 0, 128*128*4);
+ for(int ch=32;ch<128;ch++){
+  int gx=(ch%16)*8, gy=((ch-32)/16)*8;
+  for(int r=0;r<8;r++){unsigned char b=msx[ch*8+r];
+   for(int c=0;c<8;c++) if(b&(0x80>>c)) tmp[(gy+r)*128+(gx+c)]=0xFFFFFFFF;
+  }
+ }
+ RSX_MEMCPY(p, tmp, 128*128*4); font_off=tiny3d_TextureOffset(p); p=al128(p+16384);
  free(tmp);
+ wlog("VRAM base:%p | Offsets -> jet0:0x%x isl0:0x%x white:0x%x", vram, jet_off[0], isl_off[0], white_off);
 }
 void quad2d(float x,float y,float z,float w,float h,float a,float sx,float sy){
  float hw=w*.5f*sx,hh=h*.5f*sy,c=cosf(a),s=sinf(a);
  float x0=-hw*c+hh*s,y0=-hw*s-hh*c,x1=hw*c+hh*s,y1=hw*s-hh*c;
  float x2=hw*c-hh*s,y2=hw*s+hh*c,x3=-hw*c-hh*s,y3=-hw*s+hh*c;
  tiny3d_SetPolygon(TINY3D_QUADS);
- tiny3d_VertexPos(x+x0,y+y0,z);tiny3d_VertexColor(0xFFFFFFFF);tiny3d_VertexTexture(0.0f,0.0f);
+ tiny3d_VertexPos(x+x0,y+y0,z);tiny3d_VertexTexture(0.0f,0.0f);
  tiny3d_VertexPos(x+x1,y+y1,z);tiny3d_VertexTexture(0.99f,0.0f);
  tiny3d_VertexPos(x+x2,y+y2,z);tiny3d_VertexTexture(0.99f,0.99f);
  tiny3d_VertexPos(x+x3,y+y3,z);tiny3d_VertexTexture(0.0f,0.99f);
@@ -94,17 +103,25 @@ void quad2d(float x,float y,float z,float w,float h,float a,float sx,float sy){
 }
 void rect2d(float x,float y,float w,float h,float z,u32 c1,u32 c2){
  tiny3d_SetTexture(0,white_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
+ tiny3d_SetPolygon(TINY3D_QUADS);
+ tiny3d_VertexPos(x,y,z);tiny3d_VertexTexture(0,0);
+ tiny3d_VertexPos(x+w,y,z);tiny3d_VertexTexture(1,0);
+ tiny3d_VertexPos(x+w,y+h,z);tiny3d_VertexTexture(1,1);
+ tiny3d_VertexPos(x,y+h,z);tiny3d_VertexTexture(0,1);
+ tiny3d_End();
+ return;
+ tiny3d_SetTexture(0,white_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
  tiny3d_SetPolygon(TINY3D_QUADS);tiny3d_VertexPos(x,y,z);tiny3d_VertexColor(c1);tiny3d_VertexTexture(0,0);tiny3d_VertexPos(x+w,y,z);tiny3d_VertexColor(c1);tiny3d_VertexTexture(1,0);
  tiny3d_VertexPos(x+w,y+h,z);tiny3d_VertexColor(c2);tiny3d_VertexTexture(1,1);tiny3d_VertexPos(x,y+h,z);tiny3d_VertexColor(c2);tiny3d_VertexTexture(0,1);tiny3d_End();
 }
 void line2d(float x1,float y1,float x2,float y2,float z,u32 c){
  tiny3d_SetTexture(0,white_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
- float dx=x2-x1,dy=y2-y1,l=sqrtf(dx*dx+dy*dy);if(l>0.1f){float nx=-dy/l*1.5f,ny=dx/l*1.5f;tiny3d_SetPolygon(TINY3D_QUADS);tiny3d_VertexPos(x1+nx,y1+ny,z);tiny3d_VertexColor(c);tiny3d_VertexTexture(0,0);tiny3d_VertexPos(x2+nx,y2+ny,z);tiny3d_VertexTexture(1,0);tiny3d_VertexPos(x2-nx,y2-ny,z);tiny3d_VertexTexture(1,1);tiny3d_VertexPos(x1-nx,y1-ny,z);tiny3d_VertexTexture(0,1);tiny3d_End();}
+ float dx=x2-x1,dy=y2-y1,l=sqrtf(dx*dx+dy*dy);if(l>0.1f){float nx=-dy/l*1.5f,ny=dx/l*1.5f;tiny3d_SetPolygon(TINY3D_QUADS);tiny3d_VertexPos(x1+nx,y1+ny,z);tiny3d_VertexTexture(0,0);tiny3d_VertexPos(x2+nx,y2+ny,z);tiny3d_VertexTexture(1,0);tiny3d_VertexPos(x2-nx,y2-ny,z);tiny3d_VertexTexture(1,1);tiny3d_VertexPos(x1-nx,y1-ny,z);tiny3d_VertexTexture(0,1);tiny3d_End();}
 }
 void quad_persp(float x0,float z0,float x1,float z1,float x2,float z2,float x3,float z3,float yw,float hor,float zbuf){
  float s0=240.f/z0,s1=240.f/z1,s2=240.f/z2,s3=240.f/z3;
  tiny3d_SetPolygon(TINY3D_QUADS);
- tiny3d_VertexPos(424+x0*s0,hor+yw*s0,zbuf);tiny3d_VertexColor(0xFFFFFFFF);tiny3d_VertexTexture(0,0);
+ tiny3d_VertexPos(424+x0*s0,hor+yw*s0,zbuf);tiny3d_VertexTexture(0,0);
  tiny3d_VertexPos(424+x1*s1,hor+yw*s1,zbuf);tiny3d_VertexTexture(.99f,0);
  tiny3d_VertexPos(424+x2*s2,hor+yw*s2,zbuf);tiny3d_VertexTexture(.99f,.99f);
  tiny3d_VertexPos(424+x3*s3,hor+yw*s3,zbuf);tiny3d_VertexTexture(0,.99f);
@@ -124,8 +141,30 @@ void draw_world_3d(float px,float py,float ang,float alt,float cp,float cs){
     for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad_persp(x0+70,z0,x1+70,z1,x2+70,z2,x3+70,z3,alt*1.4f-42-c*2.8f,hor,480-cz-c);}
    }}}
 }
+void draw_text(float x, float y, float z, float sc, const char *s){
+ tiny3d_SetTexture(0,font_off,128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
+ float cw=8.0f*sc, ch=8.0f*sc;
+ for(int i=0;s[i];i++){
+  unsigned char c=(unsigned char)s[i]; if(c<32||c>127)continue;
+  float u0=((c%16)*8)/128.0f, v0=(((c-32)/16)*8)/128.0f, u1=u0+7.8f/128.0f, v1=v0+7.8f/128.0f;
+  float px=x+i*(cw+sc);
+  tiny3d_SetPolygon(TINY3D_QUADS);
+  tiny3d_VertexPos(px,y,z);tiny3d_VertexTexture(u0,v0);
+  tiny3d_VertexPos(px+cw,y,z);tiny3d_VertexTexture(u1,v0);
+  tiny3d_VertexPos(px+cw,y+ch,z);tiny3d_VertexTexture(u1,v1);
+  tiny3d_VertexPos(px,y+ch,z);tiny3d_VertexTexture(u0,v1);
+  tiny3d_End();
+ }
+}
+void ui_box(float x,float y,float w,float h,float z){
+ tiny3d_SetTexture(0,ui_bg_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);
+ tiny3d_SetPolygon(TINY3D_QUADS);
+ tiny3d_VertexPos(x,y,z);tiny3d_VertexTexture(0,0);tiny3d_VertexPos(x+w,y,z);tiny3d_VertexTexture(1,0);
+ tiny3d_VertexPos(x+w,y+h,z);tiny3d_VertexTexture(1,1);tiny3d_VertexPos(x,y+h,z);tiny3d_VertexTexture(0,1);
+ tiny3d_End();
+}
 int main(int argc, const char* argv[]){
- padInfo pi;padData pd;wlog("1. Inicio main (TS:%llu)",(unsigned long long)time(NULL));sysUtilRegisterCallback(0,sys_cb,NULL);tiny3d_Init(4*1024*1024);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_Flip();}wlog("3. HDMI Flip OK");ioPadInit(7);init_tex();wlog("4. Texturas OK");
+ padInfo pi;padData pd;wlog("1. Inicio main (TS:%llu)",(unsigned long long)time(NULL));sysUtilRegisterCallback(0,sys_cb,NULL);int r_t3d=tiny3d_Init(4*1024*1024);wlog("tiny3d_Init ret: 0x%x", r_t3d);wlog("2. Tiny3D Init OK");log_hw_info();for(int k=0;k<3;k++){tiny3d_Clear(0xFF2468B4,TINY3D_CLEAR_ALL);tiny3d_Flip();}wlog("3. HDMI Flip OK");int r_pad=ioPadInit(7);wlog("ioPadInit ret: 0x%x", r_pad);init_tex();wlog("4. Texturas OK");
  float px=0,py=0,ang=-PI*.5f,alt=38,roll=0,cs=0,cp=0,ct=1;int demo=1,cam=0,bt=0,bs=0,bst=0,bsel=0,fc=0;
  wlog("5. Entrando a bucle principal");while(1){sysUtilCheckCallback();
   ioPadGetInfo(&pi);float ts=0,tp=0,tt=1;fc++;
@@ -136,7 +175,7 @@ int main(int argc, const char* argv[]){
    if(!demo){
     if(pd.ANA_L_H>0||pd.ANA_L_V>0){float lx=(pd.ANA_L_H-128)/128.f,ly=(pd.ANA_L_V-128)/128.f;if(fabsf(lx)>.22f)ts=lx;if(fabsf(ly)>.22f)tp=-ly;}
     if(pd.BTN_LEFT)ts=-1;if(pd.BTN_RIGHT)ts=1;if(pd.BTN_UP)tp=1;if(pd.BTN_DOWN)tp=-1;
-    if(pd.BTN_CROSS||pd.BTN_R2)tt=2.3f;if(pd.BTN_SQUARE&&!bs&&roll<=.01f)roll=2*PI;if(pd.BTN_TRIANGLE&&!bt)cam=(cam+1)%3;
+    if(pd.BTN_CROSS||pd.BTN_R2)tt=2.3f;if(pd.BTN_SQUARE&&!bs&&roll<=.01f)roll=2*PI;if(pd.BTN_TRIANGLE&&!bt){cam=(cam+1)%3;wlog("CAMBIO DE VISTA A: %d", cam);}
    }bst=pd.BTN_START;bsel=pd.BTN_SELECT;bs=pd.BTN_SQUARE;bt=pd.BTN_TRIANGLE;}
   cs+=(ts-cs)*.14f;cp+=(tp-cp)*.14f;ct+=(tt-ct)*.1f;ang+=cs*.042f;alt+=cp*1.1f;
   if(alt<12)alt=12;if(alt>95)alt=95;if(roll>0){roll-=.18f;if(roll<0)roll=0;}
@@ -148,7 +187,7 @@ int main(int argc, const char* argv[]){
   if(cam==0){if(fc==1)wlog("6A1. Islas");if(fc==1)wlog("6A1. Dibujando islas");
    for(int ix=-1;ix<=1;ix++)for(int iy=-1;iy<=1;iy++){
     float wx=(floorf(px/520)+ix)*520-px,wy=(floorf(py/520)+iy)*520-py;
-    for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx,256+wy-s*2.2f,100-s,340,340,0,1,1);}
+    for(int s=0;s<6;s++){tiny3d_SetTexture(0,isl_off[s],128,128,512,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx,256+wy-s*2.2f,100-s,340,340,0,1,1);if(fc==1&&ix==-1&&iy==-1)wlog("6A1b. Capa isla %d OK", s);}
     for(int c=0;c<3;c++){tiny3d_SetTexture(0,cloud_off[c],32,32,128,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+wx+90,256+wy-55-c*2.2f,15-c,72,72,0,1,1);}}
    if(fc==1)wlog("6A2. Sombra");float ja=ang+PI*.5f,bk=cosf(roll)*(1-fabsf(cs)*.25f);
    tiny3d_SetTexture(0,shad_off,16,16,64,TINY3D_TEX_FORMAT_A8R8G8B8,TEXTURE_NEAREST);quad2d(424+alt*.35f,256+alt*.35f,30,44,44,ja,bk,1);
@@ -173,18 +212,17 @@ int main(int argc, const char* argv[]){
    rect2d(374,382,100,100,8,0x2B6CB0FF,0x9C4221FF);line2d(374,432+cp*20,474,432+cp*20,7,0xFFFFFFFF);
    rect2d(416,445,16,67,6,0x11161DFF,0x232B38FF);
      }
-  if(fc==1)wlog("6B. Geometria dibujada, iniciando fuente");SetCurrentFont(0);
-  if(demo){
-   rect2d(144,92,560,64,4,0x000000AA,0x000000AA);
-   SetFontAutoCenter(1);
-   SetFontSize(24,38);SetFontColor(0x000000FF,0x00000000);DrawString(3,108,"FIGHTER JET PS3 DEMO");
-   SetFontSize(24,38);SetFontColor(0xFFFFFFFF,0x00000000);DrawString(0,105,"FIGHTER JET PS3 DEMO");
+  if(fc==1)wlog("6B. Geometria dibujada, llamando Flip directo");if(demo){
+   ui_box(134,82,580,54,4);
+   draw_text(154,96,3,3.0f,"FIGHTER JET PS3 DEMO");
    if((fc/25)%2==0){
-    rect2d(224,394,400,56,4,0x000000BB,0x000000BB);
-    SetFontSize(22,34);SetFontColor(0x000000FF,0x00000000);DrawString(3,408,"PRESIONE START");
-    SetFontSize(22,34);SetFontColor(0xFCBF49FF,0x00000000);DrawString(0,405,"PRESIONE START");
+    ui_box(214,395,420,48,4);
+    draw_text(236,408,3,3.0f,"PRESIONE START");
    }
-   SetFontAutoCenter(0);
+  }else{
+   ui_box(12,10,560,26,4);
+   char buf[96];
+   sprintf(buf,"ALT:%02dM  CAM:%s  [TRI]VISTA [CUAD]TONEL [SEL]MENU",(int)alt,cam==0?"CENITAL":(cam==1?"3D":"CABINA"));
+   draw_text(20,17,3,1.5f,buf);
   }
-  else{SetFontSize(10,16);SetFontColor(0xFFFFFFFF,0x00000060);DrawFormatString(16,14,"ALT:%02dM  CAM:%s  [TRI]VISTA [CUAD]TONEL [SEL]MENU",(int)alt,cam==0?"CENITAL":(cam==1?"3D PERSECUCION":"CABINA"));}
-  if(fc==1)wlog("6C. Fuente dibujada, llamando Flip");tiny3d_Flip();if(fc==1)wlog("6D. Primer Flip RSX COMPLETADO!");}return 0;}
+  tiny3d_Flip();if(fc==1)wlog("6D. Primer Flip RSX COMPLETADO!");if(fc==10)wlog("7. 10 FRAMES FLUIDOS EN PS3 REAL!");}return 0;}

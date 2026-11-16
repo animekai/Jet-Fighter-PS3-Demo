@@ -9,12 +9,12 @@ PIC1     := $(CURDIR)/PIC1.PNG
 PIC1     := $(CURDIR)/PIC1.PNG
 APPID    := FIGHTER3D
 CONTENTID:= UP0001-$(APPID)_00-0000000000000000
-APPVER   := 01.02
+APPVER   := 01.03
 
 PKGFILES := $(CURDIR)/pkg
 include $(PSL1GHT)/ppu_rules
 
-TARGET   := ps3-fighter_0.2
+TARGET   := ps3-fighter_0.3
 BUILD    := build
 SOURCES  := source
 LIBS     := -lfont3d -ltiny3d -lrsx -lsimdmath -lgcm_sys -lio -lsysutil -lrt -llv2 -lm

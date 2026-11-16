@@ -8,8 +8,8 @@
 
 ---
 
-## 🚀 Estado Actual y Logros (v0.2)
-El proyecto se encuentra en su **versión 0.2**, funcionando de manera fluida en el emulador **RPCS3** e incorporando los siguientes avances técnicos:
+## 🚀 Estado Actual y Logros (v0.3)
+El proyecto se encuentra en su **versión 0.3**, funcionando de manera fluida en el emulador **RPCS3** e incorporando los siguientes avances técnicos:
 
 * **Menú Principal con Piloto Automático:** Pantalla de título interactiva (*PRESIONE START*) donde el caza sobrevuela el archipiélago ejecutando giros y maniobras de forma autónoma hasta que el jugador toma el control.
 * **Sistema de 3 Cámaras / Vistas en Tiempo Real (`Triángulo`):**
